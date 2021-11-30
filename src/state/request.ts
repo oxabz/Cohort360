@@ -1,15 +1,10 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit'
 import { RootState } from 'state'
+import { RequestType } from 'types'
 
 import { logout, login } from './me'
 
-import {
-  fetchRequestsList,
-  addRequest as addRequestAPI,
-  editRequest as editRequestAPI,
-  deleteRequest as deleteRequestAPI,
-  RequestType
-} from 'services/myProjects'
+import services from 'services'
 
 export type RequestState = {
   loading: boolean
@@ -41,7 +36,7 @@ const fetchRequests = createAsyncThunk<FetchRequestListReturn, void, { state: Ro
       const state = getState().request
 
       const oldRequestList = state.requestsList || []
-      const requests = (await fetchRequestsList()) || []
+      const requests = (await services.projects.fetchRequestsList(100, 0)) || []
 
       if (state.count === requests.count) {
         return {
@@ -53,7 +48,10 @@ const fetchRequests = createAsyncThunk<FetchRequestListReturn, void, { state: Ro
       let requestList = requests.results || []
       // requestList.length <= 100, check fetchRequestsList() for more information
       if (requests.count > requestList.length) {
-        const newResult = await fetchRequestsList(requests.count - requestList.length, requestList.length)
+        const newResult = await services.projects.fetchRequestsList(
+          requests.count - requestList.length,
+          requestList.length
+        )
         // Add elements to requestList array and filter doublon
         requestList = [...requestList, ...(newResult.results || [])]
         requestList = requestList.filter((item, index, array) => {
@@ -65,7 +63,6 @@ const fetchRequests = createAsyncThunk<FetchRequestListReturn, void, { state: Ro
 
       return {
         count: requests.count,
-        // selectedRequest: null,
         requestsList: requestList.reverse()
       }
     } catch (error) {
@@ -93,7 +90,7 @@ const addRequest = createAsyncThunk<AddRequestReturn, AddRequestParams, { state:
       const state = getState().request
       const requestsList: RequestType[] = state.requestsList ?? []
 
-      const createdRequest = await addRequestAPI(newRequest)
+      const createdRequest = await services.projects.addRequest(newRequest)
 
       return {
         selectedRequest: null,
@@ -132,7 +129,7 @@ const editRequest = createAsyncThunk<EditRequestReturn, EditRequestParams, { sta
       } else {
         const index = requestsList.indexOf(foundItem)
 
-        const modifiedRequest = await editRequestAPI(editedRequest)
+        const modifiedRequest = await services.projects.editRequest(editedRequest)
 
         requestsList[index] = modifiedRequest
       }
@@ -169,12 +166,95 @@ const deleteRequest = createAsyncThunk<DeleteRequestReturn, DeleteRequestParams,
       const index = foundItem ? requestsList.indexOf(foundItem) : -1
       if (index !== -1) {
         // delete item at index
-        await deleteRequestAPI(deletedRequest)
+        await services.projects.deleteRequest(deletedRequest)
 
         requestsList.splice(index, 1)
       }
 
       dispatch<any>(fetchRequests())
+
+      return {
+        selectedRequest: null,
+        requestsList: requestsList
+      }
+    } catch (error) {
+      console.error(error)
+      throw error
+    }
+  }
+)
+
+/**
+ * moveRequests
+ *
+ */
+type MoveRequestParams = {
+  selectedRequests: RequestType[]
+  parent_folder: string | undefined
+}
+type MoveRequestReturn = {
+  selectedRequest: null
+  requestsList: RequestType[]
+}
+
+const moveRequests = createAsyncThunk<MoveRequestReturn, MoveRequestParams, { state: RootState }>(
+  'request/moveRequests',
+  async ({ selectedRequests, parent_folder }, { getState }) => {
+    try {
+      const state = getState().request
+      let requestsList: RequestType[] = state.requestsList ? [...state.requestsList] : []
+
+      const results = await services.projects.moveRequests(selectedRequests, parent_folder ?? '')
+
+      requestsList = requestsList.map((requestItem) => {
+        const foundItem = results.find((result) => result.uuid === requestItem.uuid)
+        if (foundItem) {
+          return {
+            ...requestItem,
+            parent_folder
+          }
+        } else {
+          return requestItem
+        }
+      })
+
+      return {
+        selectedRequest: null,
+        requestsList: requestsList
+      }
+    } catch (error) {
+      console.error(error)
+      throw error
+    }
+  }
+)
+
+/**
+ * deleteRequests
+ *
+ */
+type DeleteRequestsParams = {
+  deletedRequests: RequestType[]
+}
+type DeleteRequestsReturn = {
+  selectedRequest: null
+  requestsList: RequestType[]
+}
+
+const deleteRequests = createAsyncThunk<DeleteRequestsReturn, DeleteRequestsParams, { state: RootState }>(
+  'request/deleteRequests',
+  async ({ deletedRequests }, { getState }) => {
+    try {
+      const state = getState().request
+      let requestsList: RequestType[] = state.requestsList ? [...state.requestsList] : []
+
+      const results = await services.projects.deleteRequests(deletedRequests)
+      console.log(`results`, results)
+
+      requestsList = requestsList.filter((requestItem) => {
+        const foundItem = results.find((result) => result.uuid === requestItem.uuid)
+        return foundItem === undefined
+      })
 
       return {
         selectedRequest: null,
@@ -245,9 +325,17 @@ const setRequestSlice = createSlice({
     builder.addCase(deleteRequest.pending, (state) => ({ ...state, loading: true }))
     builder.addCase(deleteRequest.fulfilled, (state, action) => ({ ...state, ...action.payload, loading: false }))
     builder.addCase(deleteRequest.rejected, (state) => ({ ...state, loading: false }))
+    // moveRequests
+    builder.addCase(moveRequests.pending, (state) => ({ ...state, loading: true }))
+    builder.addCase(moveRequests.fulfilled, (state, action) => ({ ...state, ...action.payload, loading: false }))
+    builder.addCase(moveRequests.rejected, (state) => ({ ...state, loading: false }))
+    // deleteRequests
+    builder.addCase(deleteRequests.pending, (state) => ({ ...state, loading: true }))
+    builder.addCase(deleteRequests.fulfilled, (state, action) => ({ ...state, ...action.payload, loading: false }))
+    builder.addCase(deleteRequests.rejected, (state) => ({ ...state, loading: false }))
   }
 })
 
 export default setRequestSlice.reducer
-export { fetchRequests, addRequest, editRequest, deleteRequest }
+export { fetchRequests, addRequest, editRequest, deleteRequest, moveRequests, deleteRequests }
 export const { clearRequest, setSelectedRequest } = setRequestSlice.actions

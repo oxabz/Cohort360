@@ -74,6 +74,14 @@ const useStyles = makeStyles(() =>
     },
     sidesMargin: {
       margin: '0 10px'
+    },
+    accordion: {
+      background: 'transparent',
+      marginTop: '12px !important',
+      color: 'currentColor !important',
+      '&::before': {
+        content: 'none'
+      }
     }
   })
 )

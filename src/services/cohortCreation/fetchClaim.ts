@@ -1,8 +1,8 @@
-import { CONTEXT } from '../../constants'
-import apiRequest from '../../services/apiRequest'
-import { fakeValueSetGHM /*fakeHierarchyGHM*/ } from '../../data/fakeData/cohortCreation/claim'
-import { codeSort } from '../../utils/alphabeticalSort'
-import { capitalizeFirstLetter } from '../../utils/capitalize'
+import { CONTEXT, CLAIM_HIERARCHY } from '../../constants'
+import apiRequest from 'services/apiRequest'
+import { fakeValueSetGHM /*fakeHierarchyGHM*/ } from 'data/fakeData/cohortCreation/claim'
+import { codeSort } from 'utils/alphabeticalSort'
+import { capitalizeFirstLetter } from 'utils/capitalize'
 
 export const fetchGhmData = async (searchValue?: string, noStar?: boolean) => {
   noStar = noStar === undefined ? true : noStar
@@ -22,15 +22,13 @@ export const fetchGhmData = async (searchValue?: string, noStar?: boolean) => {
     }
     const _searchValue = noStar
       ? searchValue
-        ? `&_text=${searchValue.trim().replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, '\\$&')}` //eslint-disable-line
+        ? `&code=${searchValue.trim().replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, '\\$&')}` //eslint-disable-line
         : ''
       : searchValue
       ? `&_text=${searchValue.trim().replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, '\\$&')}*` //eslint-disable-line
       : ''
 
-    const res = await apiRequest.get(
-      `/ValueSet?url=https://terminology.eds.aphp.fr/aphp-orbis-ghm${_searchValue}&size=0`
-    )
+    const res = await apiRequest.get<any>(`/ValueSet?url=${CLAIM_HIERARCHY}${_searchValue}&size=0`)
 
     const data =
       res && res.data && res.data.entry && res.data.resourceType === 'Bundle'
@@ -54,11 +52,11 @@ export const fetchGhmHierarchy = async (ghmParent: string) => {
     return null
   } else {
     if (!ghmParent) {
-      const res = await apiRequest.get(`/ValueSet?url=https://terminology.eds.aphp.fr/aphp-orbis-ghm`)
+      const res = await apiRequest.get<any>(`/ValueSet?url=${CLAIM_HIERARCHY}`)
 
       let GHMList =
-        res && res.data && res.data.entry && res.data.entry[1] && res.data.resourceType === 'Bundle'
-          ? res.data.entry[1].resource.compose.include[0].concept
+        res && res.data && res.data.entry && res.data.entry[0] && res.data.resourceType === 'Bundle'
+          ? res.data.entry[0].resource.compose.include[0].concept
           : []
 
       GHMList =
@@ -73,7 +71,7 @@ export const fetchGhmHierarchy = async (ghmParent: string) => {
     } else {
       const json = {
         resourceType: 'ValueSet',
-        url: 'https://terminology.eds.aphp.fr/aphp-orbis-ghm',
+        url: CLAIM_HIERARCHY,
         compose: {
           include: [
             {
@@ -88,7 +86,7 @@ export const fetchGhmHierarchy = async (ghmParent: string) => {
         }
       }
 
-      const res = await apiRequest.post(`/ValueSet/$expand`, JSON.stringify(json))
+      const res = await apiRequest.post<any>(`/ValueSet/$expand`, JSON.stringify(json))
 
       let GHMList =
         res && res.data && res.data.expansion && res.data.expansion.contains && res.data.resourceType === 'ValueSet'

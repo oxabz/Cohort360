@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useHistory } from 'react-router-dom'
 import { useDispatch } from 'react-redux'
 
 import Avatar from '@material-ui/core/Avatar'
@@ -32,12 +33,16 @@ import { ReactComponent as StarIcon } from 'assets/icones/star.svg'
 import { ReactComponent as StarFullIcon } from 'assets/icones/star full.svg'
 import MoreButton from '@material-ui/icons/MoreVert'
 
-// import ExportModal from 'components/Cohort/ExportModal/ExportModal'
+import ExportModal from 'components/Cohort/ExportModal/ExportModal'
 import ModalEditCohort from 'components/MyProjects/Modals/ModalEditCohort/ModalEditCohort'
 
 import { useAppSelector } from 'state'
 import { favoriteExploredCohort } from 'state/exploredCohort'
-import { fetchCohorts as fetchCohortsList, setSelectedCohort } from 'state/cohort'
+import { fetchCohorts as fetchCohortsList, setSelectedCohort, deleteCohort } from 'state/cohort'
+
+import { CohortType } from 'types'
+
+import services from 'services'
 
 import displayDigit from 'utils/displayDigit'
 
@@ -53,12 +58,15 @@ type TopBarProps = {
 const TopBar: React.FC<TopBarProps> = ({ context, patientsNb, access, afterEdit }) => {
   const classes = useStyles()
   const dispatch = useDispatch()
+  const history = useHistory()
 
-  const { dashboard } = useAppSelector((state) => ({
-    dashboard: state.exploredCohort
+  const { dashboard, cohortList } = useAppSelector((state) => ({
+    dashboard: state.exploredCohort,
+    cohortList: state.cohort.cohortsList
   }))
   const [isExtended, onExtend] = useState(false)
   const [openModal, setOpenModal] = useState<'' | 'edit' | 'export' | 'delete'>('')
+  const [patientsNumber, setPatientsNumber] = useState<number>(patientsNb ?? 0)
   const [anchorEl, setAnchorEl] = useState(null)
 
   const handleClick = (event: any) => {
@@ -70,10 +78,25 @@ const TopBar: React.FC<TopBarProps> = ({ context, patientsNb, access, afterEdit 
     setOpenModal('')
   }
 
+  React.useEffect(() => {
+    const _fetchPatientNumber = async () => {
+      const _patientNumber = await services.patients.fetchPatientsCount()
+
+      setPatientsNumber(_patientNumber)
+    }
+
+    if (dashboard.totalPatients === undefined) {
+      _fetchPatientNumber()
+    } else {
+      setPatientsNumber(dashboard.totalPatients)
+    }
+  }, [dashboard.totalPatients])
+
   let cohort: {
     name: string
     description?: string
     perimeters?: string[]
+    cohortId?: string
     icon?: React.ReactElement
     showActionButton?: boolean
   } = { name: '-', perimeters: [] }
@@ -82,6 +105,7 @@ const TopBar: React.FC<TopBarProps> = ({ context, patientsNb, access, afterEdit 
       cohort = {
         name: 'Tous mes patients',
         description: '',
+        cohortId: '',
         perimeters: [],
         icon: <GroupIcon />,
         showActionButton: false
@@ -91,13 +115,7 @@ const TopBar: React.FC<TopBarProps> = ({ context, patientsNb, access, afterEdit 
       cohort = {
         name: 'Information patient',
         description: '',
-        // description: Array.isArray(dashboard.cohort)
-        //   ? 'Visualisation de périmètres'
-        //   : dashboard?.cohort?.name
-        //   ? dashboard?.cohort?.name === '-'
-        //     ? 'Exploration de population'
-        //     : 'Exploration de cohorte '
-        //   : "Visualisation d'un patient",
+        cohortId: '',
         perimeters: [],
         icon: <FaceIcon />,
         showActionButton: false
@@ -107,6 +125,7 @@ const TopBar: React.FC<TopBarProps> = ({ context, patientsNb, access, afterEdit 
       cohort = {
         name: dashboard.name ?? '-',
         description: dashboard.description ?? '',
+        cohortId: dashboard.cohortId ?? '',
         perimeters: [],
         icon: <ViewListIcon />,
         showActionButton: true
@@ -133,12 +152,13 @@ const TopBar: React.FC<TopBarProps> = ({ context, patientsNb, access, afterEdit 
   }
 
   const handleConfirmDeletion = () => {
-    handleClose()
+    dispatch(deleteCohort({ deletedCohort: dashboard as CohortType }))
+    history.push('/accueil')
   }
 
   return (
     <>
-      <Grid container direction="row">
+      <Grid xs={12} container direction="row">
         <Grid xs={12} item direction="row">
           <Paper className={classes.root} square>
             <Grid container item style={{ paddingInline: 8 }} justify="space-between">
@@ -231,11 +251,16 @@ const TopBar: React.FC<TopBarProps> = ({ context, patientsNb, access, afterEdit 
                   ) : (
                     <>
                       <Typography align="right" noWrap>
-                        Nb de patients : {displayDigit(patientsNb ?? 0)}
+                        Nb de patients : {displayDigit(patientsNumber ?? 0)}
                       </Typography>
                       <Typography align="right" noWrap>
                         Accès : {access}
                       </Typography>
+                      {cohort.cohortId && (
+                        <Typography align="right" variant="subtitle2">
+                          Identifiant de la cohorte: {cohort.cohortId}
+                        </Typography>
+                      )}
                     </>
                   )}
                 </Grid>
@@ -258,21 +283,25 @@ const TopBar: React.FC<TopBarProps> = ({ context, patientsNb, access, afterEdit 
                     <MenuItem
                       onClick={async () => {
                         setAnchorEl(null)
-                        await dispatch<any>(fetchCohortsList())
+                        if (!cohortList || (cohortList && cohortList.length === 0)) {
+                          await dispatch<any>(fetchCohortsList())
+                        }
                         await dispatch<any>(setSelectedCohort(dashboard.uuid ?? null))
                         setOpenModal('edit')
                       }}
                     >
                       Modifier
                     </MenuItem>
-                    {/* <MenuItem
-                      onClick={() => {
-                        setAnchorEl(null)
-                        setOpenModal('export')
-                      }}
-                    >
-                      Exporter
-                    </MenuItem> */}
+                    {dashboard.canMakeExport && (
+                      <MenuItem
+                        onClick={() => {
+                          setAnchorEl(null)
+                          setOpenModal('export')
+                        }}
+                      >
+                        Exporter
+                      </MenuItem>
+                    )}
                     <MenuItem
                       onClick={() => {
                         setAnchorEl(null)
@@ -304,9 +333,13 @@ const TopBar: React.FC<TopBarProps> = ({ context, patientsNb, access, afterEdit 
         />
       )}
 
-      {/* {openModal === 'export' && (
-        <ExportModal cohortId={dashboard.uuid ?? ''} open handleClose={() => handleClose()} />
-      )} */}
+      {openModal === 'export' && (
+        <ExportModal
+          cohortId={Array.isArray(dashboard?.cohort) ? 0 : parseInt(dashboard?.cohort?.id || '0')}
+          open
+          handleClose={() => handleClose()}
+        />
+      )}
 
       {openModal === 'delete' && (
         <Dialog fullWidth maxWidth="xs" open onClose={handleClose} aria-labelledby="form-dialog-title">

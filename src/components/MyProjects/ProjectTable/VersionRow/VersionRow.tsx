@@ -18,31 +18,25 @@ import {
 } from '@material-ui/core'
 
 import EditIcon from '@material-ui/icons/Edit'
-// import ExportIcon from '@material-ui/icons/GetApp'
+import ExportIcon from '@material-ui/icons/GetApp'
+import { ReactComponent as Star } from 'assets/icones/star.svg'
+import { ReactComponent as StarFull } from 'assets/icones/star full.svg'
 
-// import ExportModal from 'components/Cohort/ExportModal/ExportModal'
+import ExportModal from 'components/Cohort/ExportModal/ExportModal'
 
-import { useAppSelector } from 'state'
-import { CohortState, setSelectedCohort } from 'state/cohort'
+import { setFavoriteCohortThunk } from 'state/userCohorts'
+import { setSelectedCohort } from 'state/cohort'
 
-import { CohortType } from 'services/myProjects'
+import { CohortType } from 'types'
 
 import displayDigit from 'utils/displayDigit'
 
 import useStyles from '../styles'
 
-const VersionRow: React.FC<{ requestId: string }> = ({ requestId }) => {
+const VersionRow: React.FC<{ requestId: string; cohortsList: CohortType[] }> = ({ requestId, cohortsList }) => {
   const classes = useStyles()
   const dispatch = useDispatch()
-  const { cohortState } = useAppSelector<{
-    cohortState: CohortState
-  }>((state) => ({
-    cohortState: state.cohort || {}
-  }))
-
-  const { cohortsList = [] } = cohortState
-
-  // const [selectedExportableCohort, setSelectedExportableCohort] = React.useState<null | string>(null)
+  const [selectedExportableCohort, setSelectedExportableCohort] = React.useState<null | string>(null)
 
   const cohorts: CohortType[] =
     cohortsList
@@ -51,6 +45,22 @@ const VersionRow: React.FC<{ requestId: string }> = ({ requestId }) => {
 
   const _handleEditCohort = (cohortId: string) => {
     dispatch<any>(setSelectedCohort(cohortId))
+  }
+
+  // You can make an export if you got 1 cohort with: EXPORT_DATA_NOMINATIVE = true && READ_DATA_NOMINATIVE = true
+  const canMakeExport = cohorts.some((cohort) =>
+    cohort.extension && cohort.extension.length > 0
+      ? cohort.extension.find(
+          (extension) => extension.url === 'EXPORT_DATA_NOMINATIVE' && extension.valueString === 'true'
+        ) &&
+        cohort.extension.find(
+          (extension) => extension.url === 'READ_DATA_NOMINATIVE' && extension.valueString === 'true'
+        )
+      : false
+  )
+
+  const onSetCohortFavorite = async (cohortId: string) => {
+    await dispatch<any>(setFavoriteCohortThunk({ cohortId }))
   }
 
   return (
@@ -62,8 +72,9 @@ const VersionRow: React.FC<{ requestId: string }> = ({ requestId }) => {
         <TableHead>
           <TableRow>
             <TableCell>Nom</TableCell>
+            <TableCell align="center">Favoris</TableCell>
             <TableCell align="center" style={{ width: 125 }}>
-              Status
+              Statut
             </TableCell>
             <TableCell align="center" style={{ width: 125 }}>
               Version
@@ -76,63 +87,95 @@ const VersionRow: React.FC<{ requestId: string }> = ({ requestId }) => {
                 Date
               </TableCell>
             </Hidden>
-            {/* <TableCell align="center" style={{ width: 66 }}>
-              Exporter
-            </TableCell> */}
+            {canMakeExport && (
+              <TableCell align="center" style={{ width: 66 }}>
+                Exporter
+              </TableCell>
+            )}
           </TableRow>
         </TableHead>
         <TableBody>
           {cohorts && cohorts.length > 0 ? (
-            cohorts.map((historyRow) => (
-              <TableRow key={historyRow.uuid}>
-                <TableCell className={classes.tdName}>
-                  {historyRow.fhir_group_id ? (
-                    <Link href={`/cohort/${historyRow.fhir_group_id}`}>{historyRow.name}</Link>
-                  ) : (
-                    <Typography component="span" className={classes.notAllowed}>
-                      {historyRow.name}
-                    </Typography>
-                  )}
-                  <IconButton
-                    className={classes.editButon}
-                    size="small"
-                    onClick={() => _handleEditCohort(historyRow.uuid)}
-                  >
-                    <EditIcon />
-                  </IconButton>
-                </TableCell>
-                <TableCell align="center">
-                  {historyRow.fhir_group_id ? (
-                    <Chip label="Terminé" style={{ backgroundColor: '#28a745', color: 'white' }} />
-                  ) : historyRow.request_job_status === 'pending' || historyRow.request_job_status === 'started' ? (
-                    <Chip label="En cours" style={{ backgroundColor: '#ffc107', color: 'black' }} />
-                  ) : historyRow.request_job_fail_msg ? (
-                    <Tooltip title={historyRow.request_job_fail_msg}>
+            cohorts.map((historyRow) => {
+              if (!historyRow) return <></>
+
+              const canExportThisCohort =
+                canMakeExport && historyRow.extension
+                  ? historyRow.extension.some(
+                      (extension) => extension.url === 'EXPORT_DATA_NOMINATIVE' && extension.valueString === 'true'
+                    ) &&
+                    historyRow.extension.some(
+                      (extension) => extension.url === 'READ_DATA_NOMINATIVE' && extension.valueString === 'true'
+                    )
+                  : false
+
+              return (
+                <TableRow key={historyRow.uuid}>
+                  <TableCell className={classes.tdName}>
+                    {historyRow.fhir_group_id ? (
+                      <Link href={`/cohort/${historyRow.fhir_group_id}`}>{historyRow.name}</Link>
+                    ) : (
+                      <Typography component="span" className={classes.notAllowed}>
+                        {historyRow.name}
+                      </Typography>
+                    )}
+                    <IconButton
+                      className={classes.editButon}
+                      size="small"
+                      onClick={() => _handleEditCohort(historyRow.uuid)}
+                    >
+                      <EditIcon />
+                    </IconButton>
+                  </TableCell>
+                  <TableCell align="center">
+                    <IconButton onClick={() => onSetCohortFavorite(historyRow.uuid)}>
+                      <FavStar favorite={historyRow.favorite} />
+                    </IconButton>
+                  </TableCell>
+                  <TableCell align="center">
+                    {historyRow.fhir_group_id ? (
+                      <Chip label="Terminé" style={{ backgroundColor: '#28a745', color: 'white' }} />
+                    ) : historyRow.request_job_status === 'pending' || historyRow.request_job_status === 'started' ? (
+                      <Chip label="En cours" style={{ backgroundColor: '#ffc107', color: 'black' }} />
+                    ) : historyRow.request_job_fail_msg ? (
+                      <Tooltip title={historyRow.request_job_fail_msg}>
+                        <Chip label="Erreur" style={{ backgroundColor: '#dc3545', color: 'black' }} />
+                      </Tooltip>
+                    ) : (
                       <Chip label="Erreur" style={{ backgroundColor: '#dc3545', color: 'black' }} />
-                    </Tooltip>
-                  ) : (
-                    <Chip label="Erreur" style={{ backgroundColor: '#dc3545', color: 'black' }} />
+                    )}
+                  </TableCell>
+                  <TableCell align="center">
+                    <Link
+                      className={classes.versionLabel}
+                      href={`/cohort/new/${requestId}/${historyRow.request_query_snapshot}`}
+                    >
+                      {historyRow.request_query_snapshot?.split('-')[0]}
+                    </Link>
+                  </TableCell>
+                  <TableCell align="center">{displayDigit(historyRow.result_size ?? 0)}</TableCell>
+                  <Hidden mdDown>
+                    <TableCell align="center">
+                      {moment(historyRow.modified_at).format('DD/MM/YYYY [à] HH:mm')}
+                    </TableCell>
+                  </Hidden>
+                  {canMakeExport && (
+                    <TableCell align="center">
+                      <IconButton
+                        disabled={!canExportThisCohort}
+                        onClick={
+                          canExportThisCohort
+                            ? () => setSelectedExportableCohort(historyRow.fhir_group_id ?? '')
+                            : () => null
+                        }
+                      >
+                        <ExportIcon />
+                      </IconButton>
+                    </TableCell>
                   )}
-                </TableCell>
-                <TableCell align="center">
-                  <Link
-                    className={classes.versionLabel}
-                    href={`/cohort/new/${requestId}/${historyRow.request_query_snapshot}`}
-                  >
-                    {historyRow.request_query_snapshot?.split('-')[0]}
-                  </Link>
-                </TableCell>
-                <TableCell align="center">{displayDigit(historyRow.result_size ?? 0)}</TableCell>
-                <Hidden mdDown>
-                  <TableCell align="center">{moment(historyRow.modified_at).format('DD/MM/YYYY [à] HH:mm')}</TableCell>
-                </Hidden>
-                {/* <TableCell align="center">
-                  <IconButton onClick={() => setSelectedExportableCohort(historyRow.fhir_group_id ?? '')}>
-                    <ExportIcon />
-                  </IconButton>
-                </TableCell> */}
-              </TableRow>
-            ))
+                </TableRow>
+              )
+            })
           ) : (
             <TableRow>
               <TableCell colSpan={6}>
@@ -151,13 +194,23 @@ const VersionRow: React.FC<{ requestId: string }> = ({ requestId }) => {
         </TableBody>
       </Table>
 
-      {/* <ExportModal
-        cohortId={selectedExportableCohort ?? ''}
+      <ExportModal
+        cohortId={selectedExportableCohort ? +selectedExportableCohort : 0}
         open={!!selectedExportableCohort}
         handleClose={() => setSelectedExportableCohort(null)}
-      /> */}
+      />
     </Box>
   )
+}
+
+type FavStarProps = {
+  favorite?: boolean
+}
+const FavStar: React.FC<FavStarProps> = ({ favorite }) => {
+  if (favorite) {
+    return <StarFull height="15px" fill="#ED6D91" />
+  }
+  return <Star height="15px" fill="#ED6D91" />
 }
 
 export default VersionRow

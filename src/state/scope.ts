@@ -3,7 +3,7 @@ import { RootState } from 'state'
 
 import { logout, login } from './me'
 
-import { getScopePerimeters, getScopeSubItems } from 'services/scopeService'
+import services from 'services'
 
 import { ScopeTreeRow } from 'types'
 
@@ -28,17 +28,42 @@ type FetchScopeListReturn = {
 
 const fetchScopesList = createAsyncThunk<FetchScopeListReturn, void, { state: RootState }>(
   'scope/fetchScopesList',
-  async (DO_NOT_USE, { getState }) => {
+  async (DO_NOT_USE, { getState, dispatch }) => {
     try {
       const state = getState()
       const { me, scope } = state
       const { scopesList } = scope
 
       if (scopesList.length) {
+        dispatch(fetchScopesListinBackground())
         return { scopesList }
       } else {
-        const scopes = (await getScopePerimeters(me?.id || '')) || []
+        if (!me) return { scopesList: [] }
+        const scopes = (await services.perimeters.getScopePerimeters(me.id)) || []
         return { scopesList: scopes }
+      }
+    } catch (error) {
+      console.error(error)
+      throw error
+    }
+  }
+)
+
+const fetchScopesListinBackground = createAsyncThunk<FetchScopeListReturn, void, { state: RootState }>(
+  'scope/fetchScopesListinBackground',
+  async (DO_NOT_USE, { getState }) => {
+    try {
+      const state = getState()
+      const { me, scope } = state
+      const { scopesList } = scope
+
+      if (!me) return { scopesList: [] }
+      const scopes = (await services.perimeters.getScopePerimeters(me.id)) || []
+      return {
+        scopesList: scopes.map((scope) => ({
+          ...scope,
+          subItems: (scopesList.find(({ id }) => id === scope.id) || { subItems: [] }).subItems
+        }))
       }
     } catch (error) {
       console.error(error)
@@ -80,7 +105,7 @@ const expandScopeElement = createAsyncThunk<ExpandScopeElementReturn, ExpandScop
           if (+item.id === +rowId) {
             const foundItem = item.subItems ? item.subItems.find((i: any) => i.id === 'loading') : true
             if (foundItem) {
-              const subItems: ScopeTreeRow[] = await getScopeSubItems(item)
+              const subItems: ScopeTreeRow[] = await services.perimeters.getScopeSubItems(item, true)
               item = { ...item, subItems: subItems }
             }
           } else if (item.subItems && item.subItems.length !== 0) {
@@ -135,6 +160,13 @@ const scopeSlice = createSlice({
       scopesList: action.payload.scopesList
     }))
     builder.addCase(fetchScopesList.rejected, (state) => ({ ...state, loading: false }))
+    // fetchScopesListinBackground
+    builder.addCase(fetchScopesListinBackground.fulfilled, (state, action) => ({
+      ...state,
+      loading: false,
+      scopesList: action.payload.scopesList
+    }))
+    builder.addCase(fetchScopesListinBackground.rejected, (state) => ({ ...state, loading: false }))
     // expandScopeElement
     builder.addCase(expandScopeElement.pending, (state) => ({ ...state }))
     builder.addCase(expandScopeElement.fulfilled, (state, action) => ({

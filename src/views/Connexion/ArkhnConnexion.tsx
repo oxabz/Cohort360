@@ -11,13 +11,13 @@ import DialogContent from '@material-ui/core/DialogContent'
 import DialogContentText from '@material-ui/core/DialogContentText'
 import DialogActions from '@material-ui/core/DialogActions'
 import queryString from 'query-string'
-import logo from '../../assets/images/logo-login.png'
-import { login as loginAction } from '../../state/me'
-import { arkhnAuthenticationRedirect } from '../../services/authentication'
+import logo from 'assets/images/logo-login.png'
+import { login as loginAction } from 'state/me'
+import { arkhnAuthenticationRedirect } from 'services/save_old_services/authentication'
 import { ACCES_TOKEN, STATE_STORAGE_KEY } from '../../constants'
 import useStyles from './styles'
-import { fetchPractitioner } from '../../services/practitioner'
-import { fetchDeidentified } from 'services/deidentification'
+import { fetchPractitioner } from 'services/save_old_services/practitioner'
+import { fetchDeidentified } from 'services/save_old_services/deidentification'
 import { fetchTokens } from 'services/arkhnAuth/oauth/tokenManager'
 import { CircularProgress } from '@material-ui/core'
 
@@ -71,10 +71,9 @@ const ArkhnConnexion = () => {
   const classes = useStyles()
   const [open, setOpen] = useState(false)
 
-  const changeToken = () => {
-    fetchTokens().then(() => {
-      setAccessToken(localStorage.getItem(ACCES_TOKEN))
-    })
+  const changeToken = async () => {
+    await fetchTokens()
+    setAccessToken(localStorage.getItem(ACCES_TOKEN))
   }
 
   useEffect(() => {
@@ -85,25 +84,26 @@ const ArkhnConnexion = () => {
   }, [code, state, storedState])
 
   useEffect(() => {
-    if (accessToken) {
+    const _fetchPractitioner = async () => {
       setLoading(true)
-      fetchPractitioner('')
-        .then((practitioner) => {
-          if (practitioner) {
-            fetchDeidentified()
-              .then((deidentifiedBoolean) => {
-                dispatch<any>(
-                  loginAction({
-                    ...practitioner,
-                    deidentified: deidentifiedBoolean?.deidentification ?? false
-                  })
-                )
-                history.push('/accueil')
-              })
-              .finally(() => setLoading(false))
-          }
-        })
-        .finally(() => setLoading(false))
+      const practitioner = await fetchPractitioner('')
+
+      if (practitioner) {
+        const deidentifiedBoolean = await fetchDeidentified()
+
+        dispatch<any>(
+          loginAction({
+            ...practitioner,
+            deidentified: deidentifiedBoolean?.deidentification ?? false
+          })
+        )
+        history.push('/accueil')
+      }
+      setLoading(false)
+    }
+
+    if (accessToken) {
+      _fetchPractitioner()
     }
   }, [accessToken, dispatch, history])
 

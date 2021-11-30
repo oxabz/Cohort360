@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { useDispatch } from 'react-redux'
 import clsx from 'clsx'
+import moment from 'moment'
 
-import { Button, CircularProgress, Divider, Grid, Tooltip, Typography } from '@material-ui/core'
+import { Button, CircularProgress, Divider, Grid, List, ListItem, Tooltip, Typography } from '@material-ui/core'
 import { Alert } from '@material-ui/lab'
 
 import ArrowBackIcon from '@material-ui/icons/ArrowBack'
@@ -25,14 +26,17 @@ import useStyle from './styles'
 
 import displayDigit from 'utils/displayDigit'
 
+const DISPLAY_ESTIMATE_LIMIT = 24
+
 const ControlPanel: React.FC<{
-  onExecute?: (cohortName: string, cohortDescription: string) => void
+  onExecute?: (cohortName: string, cohortDescription: string, globalCount: boolean) => void
   onUndo?: () => void
   onRedo?: () => void
 }> = ({ onExecute, onUndo, onRedo }) => {
   const classes = useStyle()
   const dispatch = useDispatch()
   const [openModal, onSetOpenModal] = useState<'executeCohortConfirmation' | null>(null)
+  const [oldCount, setOldCount] = useState<number | null>(null)
 
   const {
     loading = false,
@@ -40,26 +44,20 @@ const ControlPanel: React.FC<{
     countLoading = false,
     count = {},
     criteriaGroup = [],
-    selectedPopulation = []
+    selectedCriteria = [],
+    selectedPopulation = [],
+    currentSnapshot,
+    requestId,
+    json
   } = useAppSelector((state) => state.cohortCreation.request || {})
-  const { includePatient /*byrequest, alive, deceased, female, male, unknownPatient */ } = count
+  const { includePatient, status, jobFailMsg /*byrequest, alive, deceased, female, male, unknownPatient */ } = count
 
-  const accessIsPseudonymize =
+  const accessIsPseudonymize: boolean | null =
     selectedPopulation === null
-      ? false
-      : selectedPopulation.map((population) => population.access).filter((elem) => elem && elem === 'Pseudonymisé')
-          .length > 0
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (count && count.status && (count.status === 'pending' || count.status === 'started')) {
-        dispatch<any>(countCohortCreation({ uuid: count.uuid }))
-      } else {
-        clearInterval(interval)
-      }
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [count]) //eslint-disable-line
+      ? null
+      : selectedPopulation
+          .map((population) => population && population.access)
+          .filter((elem) => elem && elem === 'Pseudonymisé').length > 0
 
   const checkIfLogicalOperatorIsEmpty = () => {
     let _criteriaGroup = criteriaGroup ? criteriaGroup : []
@@ -88,7 +86,33 @@ const ControlPanel: React.FC<{
     dispatch(buildCohortCreation({}))
   }
 
+  const _relaunchCount = (keepCount: boolean) => {
+    if (keepCount) setOldCount(count.includePatient ?? null)
+    dispatch<any>(
+      countCohortCreation({
+        json,
+        snapshotId: currentSnapshot,
+        requestId
+      })
+    )
+  }
+
   const itLoads = loading || countLoading || saveLoading
+  const errorCriteria = selectedCriteria.filter((criteria) => criteria.error)
+  const lastUpdated = moment(count.date)
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (count && count.status && (count.status === 'pending' || count.status === 'started')) {
+        dispatch<any>(countCohortCreation({ uuid: count.uuid }))
+        setOldCount(null)
+      } else {
+        clearInterval(interval)
+        setOldCount(null)
+      }
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [count]) //eslint-disable-line
 
   return (
     <>
@@ -160,7 +184,7 @@ const ControlPanel: React.FC<{
           <Grid container justify="space-between">
             <Typography className={clsx(classes.boldText, classes.patientTypo)}>ACCÈS:</Typography>
             <Typography className={clsx(classes.blueText, classes.boldText, classes.patientTypo)}>
-              {accessIsPseudonymize ? 'Pseudonymisé' : 'Nominatif'}
+              {accessIsPseudonymize === null ? '-' : accessIsPseudonymize ? 'Pseudonymisé' : 'Nominatif'}
             </Typography>
           </Grid>
         </Grid>
@@ -182,55 +206,60 @@ const ControlPanel: React.FC<{
                 })}
               >
                 {includePatient !== undefined && includePatient !== null ? displayDigit(includePatient) : '-'}
+                {oldCount !== null ? `(${oldCount - (includePatient ?? 0)})` : ''}
               </Typography>
             )}
           </Grid>
-
-          {/* <Grid container justify="space-between">
-            <Typography className={classes.sidesMargin}>Patients vivants</Typography>
-            {countLoading ? (
-              <CircularProgress size={12} className={clsx(classes.blueText, classes.sidesMargin)} />
-            ) : (
-              <Typography className={clsx(classes.blueText, classes.sidesMargin)}>{alive ?? '-'}</Typography>
-            )}
-          </Grid>
-          <Grid container justify="space-between">
-            <Typography className={classes.sidesMargin}>Patients décédés</Typography>
-            {countLoading ? (
-              <CircularProgress size={12} className={clsx(classes.blueText, classes.sidesMargin)} />
-            ) : (
-              <Typography className={clsx(classes.blueText, classes.sidesMargin)}>{deceased ?? '-'}</Typography>
-            )}
-          </Grid>
-          <Grid container justify="space-between">
-            <Typography className={clsx(classes.sidesMargin)}>Nombre de femmes</Typography>
-            {countLoading ? (
-              <CircularProgress size={12} className={clsx(classes.blueText, classes.sidesMargin)} />
-            ) : (
-              <Typography className={clsx(classes.blueText, classes.sidesMargin)}>{female ?? '-'}</Typography>
-            )}
-          </Grid>
-          <Grid container justify="space-between">
-            <Typography className={classes.sidesMargin}>Nombre d'hommes</Typography>
-            {countLoading ? (
-              <CircularProgress size={12} className={clsx(classes.blueText, classes.sidesMargin)} />
-            ) : (
-              <Typography className={clsx(classes.blueText, classes.sidesMargin)}>{male ?? '-'}</Typography>
-            )}
-            <Grid container justify="space-between">
-              <Typography className={classes.sidesMargin}>Nombre d'inconnu</Typography>
-              {countLoading ? (
-                <CircularProgress size={12} className={clsx(classes.blueText, classes.sidesMargin)} />
-              ) : (
-                <Typography className={clsx(classes.blueText, classes.sidesMargin)}>{unknownPatient ?? '-'}</Typography>
-              )}
-            </Grid>
-          </Grid> */}
         </Grid>
 
         {!!includePatient && includePatient > 20000 && (
           <Alert style={{ marginTop: 8, borderRadius: 12, border: '1px solid currentColor' }} severity="error">
             Il est pour le moment impossible de créer des cohortes de plus de 20 000 patients
+          </Alert>
+        )}
+
+        {(status === 'failed' || status === 'error') && (
+          <Alert style={{ marginTop: 8, borderRadius: 12, border: '1px solid currentColor' }} severity="error">
+            Une erreur est survenue lors du calcul du nombre de patients de votre requête. <br />
+            {jobFailMsg}
+            <Button
+              onClick={() => _relaunchCount(false)}
+              variant="outlined"
+              color="secondary"
+              size="small"
+              style={{ marginTop: 8 }}
+            >
+              Relancer la requête
+            </Button>
+          </Alert>
+        )}
+
+        {errorCriteria && errorCriteria.length > 0 && (
+          <Alert style={{ marginTop: 8, borderRadius: 12, border: '1px solid currentColor' }} severity="error">
+            Les critères suivants sont obsolètes : <br />
+            <List>
+              {errorCriteria.map((errorCrit) => (
+                <ListItem key={errorCrit.id}>{errorCrit.title}</ListItem>
+              ))}
+            </List>
+            Vous risquez d'avoir perdu les informations concernant ces critères, merci de les vérifier avant de
+            relancer/modifier votre requête
+          </Alert>
+        )}
+
+        {moment().diff(lastUpdated, 'hours') > DISPLAY_ESTIMATE_LIMIT && (
+          <Alert style={{ marginTop: 8, borderRadius: 12, border: '1px solid currentColor' }} severity="info">
+            Attention l'estimation du nombre de patient correspondant à votre requête effectuée le{' '}
+            {lastUpdated.format('DD/MM/YYYY')} est peut être dépassé, voulez vous le recalculer ?
+            <Button
+              onClick={() => _relaunchCount(true)}
+              variant="outlined"
+              color="primary"
+              size="small"
+              style={{ marginTop: 8 }}
+            >
+              Relancer la requête
+            </Button>
           </Alert>
         )}
       </Grid>

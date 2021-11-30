@@ -12,15 +12,18 @@ import DialogTitle from '@material-ui/core/DialogTitle'
 import DialogContent from '@material-ui/core/DialogContent'
 import DialogContentText from '@material-ui/core/DialogContentText'
 import DialogActions from '@material-ui/core/DialogActions'
+import CircularProgress from '@material-ui/core/CircularProgress'
 
-import Footer from '../../components/Footer/Footer'
-import logo from '../../assets/images/logo-login.png'
-import { login as loginAction } from '../../state/me'
-import { authenticate } from '../../services/authentication'
+import Footer from 'components/Footer/Footer'
+import NoRights from 'components/ErrorView/NoRights'
+
+import logo from 'assets/images/logo-login.png'
+import { login as loginAction } from 'state/me'
 import { ACCES_TOKEN, REFRESH_TOKEN } from '../../constants'
+
+import services from 'services'
+
 import useStyles from './styles'
-import { fetchPractitioner } from '../../services/practitioner'
-import { fetchDeidentified } from 'services/deidentification'
 
 const ErrorDialog = ({ open, setErrorLogin }) => {
   const _setErrorLogin = () => {
@@ -79,16 +82,26 @@ const Login = () => {
   const history = useHistory()
   const classes = useStyles()
   const dispatch = useDispatch()
+  const [loading, setLoading] = useState(false)
   const [username, setUsername] = useState(undefined)
   const [password, setPassword] = useState(undefined)
+  const [noRights, setNoRights] = useState(false)
   const [errorLogin, setErrorLogin] = useState(false)
   const [open, setOpen] = useState(false)
 
   const getPractitionerData = async (lastConnection) => {
-    const practitioner = await fetchPractitioner(username)
+    if (
+      typeof services?.practitioner?.fetchPractitioner !== 'function' ||
+      typeof services.perimeters.fetchDeidentified !== 'function'
+    ) {
+      setLoading(false)
+      return setErrorLogin(true)
+    }
+
+    const practitioner = await services.practitioner.fetchPractitioner(username)
 
     if (practitioner) {
-      const deidentifiedInfos = await fetchDeidentified(practitioner.id)
+      const deidentifiedInfos = await services.perimeters.fetchDeidentified(practitioner.id)
 
       dispatch(
         loginAction({
@@ -102,7 +115,9 @@ const Login = () => {
       const oldPath = localStorage.getItem('old-path')
       localStorage.removeItem('old-path')
       history.push(oldPath ?? '/accueil')
+      setLoading(false)
     } else {
+      setLoading(false)
       setErrorLogin(true)
     }
   }
@@ -113,16 +128,31 @@ const Login = () => {
     localStorage.removeItem('exploredCohort')
     localStorage.removeItem('userCohorts')
     localStorage.removeItem('cohortCreation')
+    localStorage.removeItem('medication')
+    localStorage.removeItem('scope')
+    localStorage.removeItem('project')
+    localStorage.removeItem('cohort')
+    localStorage.removeItem('request')
+    localStorage.removeItem('pmsi')
     localStorage.removeItem('access')
     localStorage.removeItem('refresh')
   }, [])
 
   const login = async () => {
     try {
-      if (!username || !password) return setErrorLogin(true)
+      if (loading) return
+      setLoading(true)
 
-      const response = await authenticate(username, password)
-      if (!response) return setErrorLogin(true)
+      if (!username || !password) {
+        setLoading(false)
+        return setErrorLogin(true)
+      }
+
+      const response = await services.practitioner.authenticate(username, password)
+      if (!response) {
+        setLoading(false)
+        return setErrorLogin(true)
+      }
 
       const { status, data = {} } = response
 
@@ -130,12 +160,21 @@ const Login = () => {
         localStorage.setItem(ACCES_TOKEN, data.access)
         localStorage.setItem(REFRESH_TOKEN, data.refresh)
 
-        const lastConnection = data.last_connection ? data.last_connection.modified_at : undefined
-        getPractitionerData(lastConnection)
+        const getPractitioner = await services.practitioner.fetchPractitioner(username)
+        const getRights = await services.practitioner.fetchPractitionerRole(getPractitioner.id)
+
+        if (getRights === undefined) {
+          setNoRights(true)
+        } else {
+          const lastConnection = data.last_connection ? data.last_connection.modified_at : undefined
+          getPractitionerData(lastConnection)
+        }
       } else {
-        setErrorLogin(true)
+        setLoading(false)
+        return setErrorLogin(true)
       }
     } catch (err) {
+      setLoading(false)
       setErrorLogin(true)
     }
   }
@@ -144,6 +183,8 @@ const Login = () => {
     e.preventDefault()
     login()
   }
+
+  if (noRights == true) return <NoRights />
 
   return (
     <>
@@ -204,14 +245,14 @@ const Login = () => {
                 </Typography>
 
                 <Button
-                  disabled={!username || !password}
+                  disabled={loading || !username || !password}
                   type="submit"
                   fullWidth
                   variant="contained"
                   color="primary"
                   className={classes.submit}
                 >
-                  Connexion
+                  {loading ? <CircularProgress /> : 'Connexion'}
                 </Button>
               </Grid>
 

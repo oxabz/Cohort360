@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 
 import {
+  Checkbox,
   Table,
   TableBody,
   TableCell,
@@ -14,43 +15,57 @@ import {
 
 import ProjectRow from './ProjectRow/ProjectRow'
 
-import { ProjectType, RequestType } from 'services/myProjects'
+import { ProjectType, RequestType } from 'types'
 
 import { useAppSelector } from 'state'
 import { ProjectState } from 'state/project'
 import { RequestState } from 'state/request'
+import { CohortState } from 'state/cohort'
 
 import useStyles from './styles'
 
 type ProjectTableProps = {
   searchInput?: string
+  selectedRequests: RequestType[]
+  setSelectedRequests: (selectedRequests: RequestType[]) => void
 }
 
-const ProjectTable: React.FC<ProjectTableProps> = ({ searchInput }) => {
+const ProjectTable: React.FC<ProjectTableProps> = ({ searchInput, setSelectedRequests, selectedRequests }) => {
   const classes = useStyles()
-  const { projectState, requestState } = useAppSelector<{
+  const { projectState, requestState, cohortState } = useAppSelector<{
     projectState: ProjectState
     requestState: RequestState
+    cohortState: CohortState
   }>((state) => ({
     projectState: state.project,
-    requestState: state.request
+    requestState: state.request,
+    cohortState: state.cohort
   }))
   const { projectsList } = projectState
   const { requestsList } = requestState
+  const { cohortsList } = cohortState
 
   const [sortBy, setSortBy] = useState<'name' | 'modified_at'>('name')
   const [sortDirection, setSortDirection] = useState<'desc' | 'asc'>('asc')
 
   const [searchProjectList, setSearchProjectList] = useState(projectsList || [])
-  const [searchRequestList, setSearchRequestList] = useState(requestsList || [])
+  const [currentRequestList, setSearchRequestList] = useState(requestsList || [])
+  const [searchCohortList, setSearchCohortList] = useState(cohortsList || [])
 
   useEffect(() => {
     // eslint-disable-next-line
     const regexp = new RegExp(`${(searchInput || '').replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, '\\$&')}`, 'gi')
 
+    const newSearchCohortList = !searchInput
+      ? cohortsList
+      : cohortsList.filter(({ name }) => name.search(regexp) !== -1)
+
     const newSearchRequestList = !searchInput
       ? requestsList
-      : requestsList.filter(({ name }) => name.search(regexp) !== -1)
+      : requestsList.filter(
+          ({ name, uuid }) =>
+            name.search(regexp) !== -1 || !!newSearchCohortList.find(({ request }) => request === uuid)
+        )
 
     const newSearchProjectList = !searchInput
       ? projectsList
@@ -59,18 +74,20 @@ const ProjectTable: React.FC<ProjectTableProps> = ({ searchInput }) => {
             name.search(regexp) !== -1 || !!newSearchRequestList.find(({ parent_folder }) => parent_folder === uuid)
         )
 
-    setSearchProjectList(newSearchProjectList)
-    setSearchRequestList(newSearchRequestList)
+    setSearchCohortList(newSearchCohortList && newSearchCohortList.length > 0 ? newSearchCohortList : [])
+    setSearchRequestList(newSearchRequestList && newSearchRequestList.length > 0 ? newSearchRequestList : [])
+    setSearchProjectList(newSearchProjectList && newSearchProjectList.length > 0 ? newSearchProjectList : [])
 
     return () => {
       setSearchProjectList([])
       setSearchRequestList([])
+      setSearchCohortList([])
     }
-  }, [searchInput])
+  }, [searchInput, projectsList, requestsList, cohortsList])
 
   useEffect(() => {
-    let newSearchRequestList = searchRequestList ? [...searchRequestList] : []
-    let newSearchProjectList = searchProjectList ? [...searchProjectList] : []
+    let newSearchProjectList = projectsList ? [...projectsList] : []
+    let newSearchRequestList = requestsList ? [...requestsList] : []
 
     switch (sortBy) {
       case 'name': {
@@ -121,7 +138,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({ searchInput }) => {
       setSearchProjectList([])
       setSearchRequestList([])
     }
-  }, [sortBy, sortDirection])
+  }, [sortBy, sortDirection, projectsList, requestsList, cohortsList])
 
   const handleRequestSort = (property: 'name' | 'modified_at') => {
     const isAsc = sortBy === property && sortDirection === 'desc'
@@ -129,12 +146,32 @@ const ProjectTable: React.FC<ProjectTableProps> = ({ searchInput }) => {
     setSortBy(property)
   }
 
+  const _onSelectedRow = (_selectedRequests: RequestType[]) => {
+    setSelectedRequests(_selectedRequests)
+  }
+
+  const allRequestsSelected = selectedRequests.length === currentRequestList.length
+
   return (
     <TableContainer component={Paper} className={classes.grid}>
       <Table aria-label="projects table" id="projects_table" className={classes.table}>
         <TableHead>
           <TableRow className={classes.tableHead}>
-            <TableCell className={classes.tableHeadCell} align="center" style={{ width: 62 }} />
+            <TableCell className={classes.tableHeadCell} align="center" style={{ width: 62, padding: '0 16px' }}>
+              <Checkbox
+                size="small"
+                checked={allRequestsSelected}
+                indeterminate={allRequestsSelected ? false : selectedRequests.length !== 0}
+                onChange={() => {
+                  const _selectedRequests = currentRequestList
+                  if (selectedRequests.length === 0) {
+                    setSelectedRequests(_selectedRequests)
+                  } else {
+                    setSelectedRequests([])
+                  }
+                }}
+              />
+            </TableCell>
             <TableCell className={classes.tableHeadCell} align="center" style={{ width: 62 }} />
             <TableCell className={classes.tableHeadCell} style={{ width: 'calc(100% - 300px' }}>
               <TableSortLabel
@@ -169,11 +206,11 @@ const ProjectTable: React.FC<ProjectTableProps> = ({ searchInput }) => {
             <ProjectRow
               key={project.uuid}
               row={project}
-              requestOfProject={
-                searchRequestList && searchRequestList.length > 0
-                  ? searchRequestList.filter(({ parent_folder }) => parent_folder === project.uuid)
-                  : requestsList.filter(({ parent_folder }) => parent_folder === project.uuid)
-              }
+              searchInput={searchInput}
+              requestOfProject={currentRequestList.filter(({ parent_folder }) => parent_folder === project.uuid)}
+              cohortsList={searchCohortList && searchCohortList.length > 0 ? searchCohortList : cohortsList}
+              selectedRequests={selectedRequests}
+              onSelectedRow={_onSelectedRow}
             />
           ))}
         </TableBody>

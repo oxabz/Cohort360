@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { useDispatch } from 'react-redux'
 
 import { ButtonGroup, Button, IconButton, CircularProgress } from '@material-ui/core'
@@ -19,7 +19,6 @@ import {
   addNewSelectedCriteria,
   editSelectedCriteria,
   deleteSelectedCriteria,
-  countCohortCreation,
   suspendCount,
   unsuspendCount
 } from 'state/cohortCreation'
@@ -183,7 +182,7 @@ const LogicalOperator: React.FC = () => {
     _buildCohortCreation()
   }
 
-  const _addNewGroup = (parentId: number) => {
+  const _addNewGroup = async (parentId: number) => {
     // Add new group
     const nextGroupId = request.nextGroupId
     const newOperator: CriteriaGroupType = {
@@ -194,11 +193,11 @@ const LogicalOperator: React.FC = () => {
       isSubGroup: parentId === 0 ? false : true,
       isInclusive: true
     }
-    dispatch<any>(addNewCriteriaGroup(newOperator))
+    await dispatch<any>(addNewCriteriaGroup(newOperator))
     // Edit parent and add nextGroupId inside criteriaIds
     const currentParent = request.criteriaGroup ? request.criteriaGroup.find(({ id }) => id === parentId) : null
     if (!currentParent) return
-    dispatch<any>(
+    await dispatch<any>(
       editCriteriaGroup({
         ...currentParent,
         criteriaIds: [...currentParent.criteriaIds, nextGroupId]
@@ -221,22 +220,10 @@ const LogicalOperator: React.FC = () => {
     setSelectedCriteria(criteria)
   }
 
-  const _deleteCriteria = (criteriaId: number) => {
-    dispatch<any>(deleteSelectedCriteria(criteriaId))
+  const _deleteCriteria = async (criteriaId: number) => {
+    await dispatch<any>(deleteSelectedCriteria(criteriaId))
     _buildCohortCreation()
   }
-
-  useEffect(() => {
-    if (openDrawer === null && request?.count?.status === 'suspended') {
-      if (request?.count?.uuid) {
-        // Relaunch count
-        dispatch<any>(countCohortCreation({ uuid: request?.count?.uuid }))
-      } else {
-        // Stop suspend effect
-        dispatch<any>(unsuspendCount())
-      }
-    }
-  }, [openDrawer, request])
 
   return (
     <>
@@ -253,7 +240,10 @@ const LogicalOperator: React.FC = () => {
         selectedCriteria={selectedCriteria}
         onChangeSelectedCriteria={_onConfirmAddOrEditCriteria}
         open={openDrawer === 'criteria'}
-        onClose={() => setOpenDrawer(null)}
+        onClose={() => {
+          dispatch<any>(unsuspendCount())
+          setOpenDrawer(null)
+        }}
       />
     </>
   )

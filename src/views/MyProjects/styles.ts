@@ -1,5 +1,5 @@
 import { makeStyles } from '@material-ui/core/styles'
-import { smallDrawerWidth, largeDrawerWidth } from '../../components/LeftSideBar/LeftSideBar'
+import { smallDrawerWidth, largeDrawerWidth } from 'components/LeftSideBar/LeftSideBar'
 
 const useStyles = makeStyles((theme) => ({
   appBar: {
@@ -35,12 +35,21 @@ const useStyles = makeStyles((theme) => ({
     paddingTop: theme.spacing(2),
     paddingBottom: theme.spacing(2)
   },
+  secondaryContainer: {
+    paddingTop: theme.spacing(2),
+    paddingBottom: theme.spacing(2)
+  },
   addButton: {
     backgroundColor: '#5BC5F2',
     color: '#FFF',
     borderRadius: '25px',
     margin: '0 4px',
-    padding: theme.spacing(1)
+    padding: '8px 12px'
+  },
+  addIconButton: {
+    margin: '0 4px',
+    backgroundColor: '#5BC5F2',
+    color: '#FFF'
   }
 }))
 

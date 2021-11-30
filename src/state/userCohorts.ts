@@ -2,6 +2,7 @@ import { FormattedCohort } from 'types'
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit'
 import { RootState } from 'state'
 import { fetchFavoriteCohorts, fetchLastCohorts, setFavorite, onRemoveCohort } from 'services/savedResearches'
+import { setAsFavoriteCohort } from './cohort'
 
 import { logout, login } from './me'
 
@@ -16,16 +17,24 @@ const initialState: UserCohortsState = localStorageUserCohorts ? JSON.parse(loca
 
 const initUserCohortsThunk = createAsyncThunk<UserCohortsState, void, { state: RootState }>(
   'userCohorts/initUserCohortsThunk',
-  async () => {
-    const [favoriteCohorts, lastCohorts] = await Promise.all([fetchFavoriteCohorts(), fetchLastCohorts()])
+  async (params, { getState }) => {
+    const meState = getState().me
+
+    const [favoriteCohorts, lastCohorts] = await Promise.all([
+      fetchFavoriteCohorts(meState?.id),
+      fetchLastCohorts(meState?.id)
+    ])
+
     return { favoriteCohorts: favoriteCohorts ?? [], lastCohorts: lastCohorts ?? [] }
   }
 )
 
 const fetchFavoriteCohortsThunk = createAsyncThunk<void, void, { state: RootState }>(
   'userCohorts/fetchFavoriteCohortsThunk',
-  async (params, { dispatch }) => {
-    const favoriteCohorts = await fetchFavoriteCohorts()
+  async (params, { getState, dispatch }) => {
+    const meState = getState().me
+
+    const favoriteCohorts = await fetchFavoriteCohorts(meState?.id)
     // eslint-disable-next-line @typescript-eslint/no-use-before-define
     dispatch<any>(userCohortsSlice.actions.setFavoriteCohorts(favoriteCohorts))
   }
@@ -38,6 +47,7 @@ const setFavoriteCohortThunk = createAsyncThunk<void, { cohortId: string }, { st
     const isCohortFavorite = favoriteCohorts ? favoriteCohorts.some((cohort) => cohort.researchId === cohortId) : false
     if (await setFavorite(cohortId, isCohortFavorite)) {
       dispatch<any>(fetchFavoriteCohortsThunk())
+      dispatch<any>(setAsFavoriteCohort(cohortId))
     }
   }
 )

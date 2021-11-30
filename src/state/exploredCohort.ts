@@ -6,9 +6,7 @@ import { RootState } from 'state'
 
 import { setFavoriteCohortThunk } from './userCohorts'
 
-import { fetchCohort } from 'services/cohortInfos'
-import { fetchMyPatients } from 'services/myPatients'
-import { fetchPerimetersInfos } from 'services/perimeters'
+import services from 'services'
 
 export type ExploredCohortState = {
   importedPatients: any[]
@@ -16,6 +14,8 @@ export type ExploredCohortState = {
   excludedPatients: any[]
   loading: boolean
   requestId?: string
+  cohortId?: string
+  canMakeExport?: boolean
 } & CohortData
 
 const localStorageExploredCohort = localStorage.getItem('exploredCohort') ?? null
@@ -26,7 +26,7 @@ const defaultInitialState = {
   name: '',
   description: '',
   cohort: [],
-  totalPatients: 0,
+  totalPatients: undefined,
   originalPatients: [],
   totalDocs: 0,
   documentsList: [],
@@ -36,6 +36,7 @@ const defaultInitialState = {
   visitTypeRepartitionData: undefined,
   monthlyVisitData: undefined,
   agePyramidData: undefined,
+  canMakeExport: false,
   requestId: '',
   cohortId: '',
   favorite: false,
@@ -83,14 +84,18 @@ const fetchExploredCohort = createAsyncThunk<
   CohortData,
   { context: 'patients' | 'cohort' | 'perimeters' | 'new_cohort'; id?: string; forceReload?: boolean },
   { state: RootState }
->('exploredCohort/fetchExploredCohort', async ({ context, id, forceReload }, { getState }) => {
+>('exploredCohort/fetchExploredCohort', async ({ context, id, forceReload }, { getState, dispatch }) => {
   const state = getState()
+  const providerId = state.me?.id
   const stateCohort = state.exploredCohort.cohort
+
   let shouldRefreshData = true
+
   switch (context) {
-    case 'cohort':
+    case 'cohort': {
       shouldRefreshData = !stateCohort || Array.isArray(stateCohort) || stateCohort.id !== id
       break
+    }
     case 'perimeters': {
       if (!id) {
         throw new Error('No given perimeter ids')
@@ -120,30 +125,36 @@ const fetchExploredCohort = createAsyncThunk<
     switch (context) {
       case 'cohort': {
         if (id) {
-          cohort = await fetchCohort(id)
+          cohort = (await services.cohorts.fetchCohort(id)) as ExploredCohortState
+          if (cohort) {
+            cohort.cohortId = id
+            cohort.canMakeExport = await services.cohorts.fetchCohortExportRight(id, providerId ?? '')
+          }
         }
         break
       }
       case 'patients': {
-        cohort = await fetchMyPatients()
+        cohort = (await services.patients.fetchMyPatients()) as ExploredCohortState
         if (cohort) {
           cohort.name = '-'
           cohort.description = ''
           cohort.requestId = ''
           cohort.favorite = false
           cohort.uuid = ''
+          cohort.canMakeExport = false
         }
         break
       }
       case 'perimeters': {
         if (id) {
-          cohort = await fetchPerimetersInfos(id)
+          cohort = (await services.perimeters.fetchPerimetersInfos(id)) as ExploredCohortState
           if (cohort) {
             cohort.name = '-'
             cohort.description = ''
             cohort.requestId = ''
             cohort.favorite = false
             cohort.uuid = ''
+            cohort.canMakeExport = false
           }
         }
         break
@@ -151,6 +162,57 @@ const fetchExploredCohort = createAsyncThunk<
 
       default:
         break
+    }
+  } else {
+    dispatch<any>(fetchExploredCohortInBackground({ context, id }))
+  }
+  return cohort ?? state.exploredCohort
+})
+
+const fetchExploredCohortInBackground = createAsyncThunk<
+  CohortData,
+  { context: 'patients' | 'cohort' | 'perimeters' | 'new_cohort'; id?: string },
+  { state: RootState }
+>('exploredCohort/fetchExploredCohortInBackground', async ({ context, id }, { getState }) => {
+  const state = getState()
+  const providerId = state.me?.id
+
+  let cohort
+  switch (context) {
+    case 'cohort': {
+      if (id) {
+        cohort = (await services.cohorts.fetchCohort(id)) as ExploredCohortState
+        if (cohort) {
+          cohort.canMakeExport = await services.cohorts.fetchCohortExportRight(id, providerId ?? '')
+        }
+      }
+      break
+    }
+    case 'patients': {
+      cohort = (await services.patients.fetchMyPatients()) as ExploredCohortState
+      if (cohort) {
+        cohort.name = '-'
+        cohort.description = ''
+        cohort.requestId = ''
+        cohort.favorite = false
+        cohort.uuid = ''
+        cohort.canMakeExport = false
+      }
+      break
+    }
+    case 'perimeters': {
+      if (id) {
+        cohort = (await services.perimeters.fetchPerimetersInfos(id)) as ExploredCohortState
+        if (cohort) {
+          cohort.name = '-'
+          cohort.description = ''
+          cohort.requestId = ''
+          cohort.favorite = false
+          cohort.uuid = ''
+          cohort.canMakeExport = false
+        }
+      }
+      break
     }
   }
   return cohort ?? state.exploredCohort
@@ -234,6 +296,13 @@ const exploredCohortSlice = createSlice({
     builder.addCase(fetchExploredCohort.pending, (state) => ({ ...state, loading: true }))
     builder.addCase(fetchExploredCohort.fulfilled, (state, { payload }) => ({ ...state, ...payload, loading: false }))
     builder.addCase(fetchExploredCohort.rejected, () => ({ ...defaultInitialState }))
+    builder.addCase(fetchExploredCohortInBackground.pending, (state) => ({ ...state, loading: true }))
+    builder.addCase(fetchExploredCohortInBackground.fulfilled, (state, { payload }) => ({
+      ...state,
+      ...payload,
+      loading: false
+    }))
+    builder.addCase(fetchExploredCohortInBackground.rejected, () => ({ ...defaultInitialState }))
     builder.addCase(favoriteExploredCohort.pending, (state) => ({ ...state }))
     builder.addCase(favoriteExploredCohort.fulfilled, (state, { payload }) => ({
       ...state,
@@ -244,7 +313,7 @@ const exploredCohortSlice = createSlice({
 })
 
 export default exploredCohortSlice.reducer
-export { fetchExploredCohort, favoriteExploredCohort }
+export { fetchExploredCohort, favoriteExploredCohort, fetchExploredCohortInBackground }
 export const {
   addImportedPatients,
   excludePatients,

@@ -10,24 +10,23 @@ import {
   DialogContent,
   DialogTitle,
   Grid,
-  MenuItem,
-  Select,
-  TextField,
   Typography
 } from '@material-ui/core'
 
-import useStyles from './styles'
+import RequestForm from './components/RequestForm'
+import RequestList from './components/RequestList'
 
-import { ProjectType, RequestType, addProject, fetchProjectsList, fetchRequestsList } from 'services/myProjects'
+import { RequestType } from 'types'
+import services from 'services'
 
 import { useAppSelector } from 'state'
 import { ProjectState, fetchProjects } from 'state/project'
-import { RequestState, addRequest, editRequest, deleteRequest } from 'state/request'
+import { RequestState, fetchRequests, addRequest, editRequest, deleteRequest } from 'state/request'
+import { fetchRequestCohortCreation } from 'state/cohortCreation'
 
-// import { createRequestCohortCreation as createRequest } from 'state/cohortCreation'
+import useStyles from './styles'
 
 const ERROR_TITLE = 'error_title'
-const ERROR_DESCRIPTION = 'error_description'
 const ERROR_PROJECT = 'error_project'
 const ERROR_PROJECT_NAME = 'error_project_name'
 
@@ -47,23 +46,21 @@ const ModalCreateNewRequest: React.FC<{
     requestState: state.request
   }))
 
-  const { selectedRequest } = requestState
+  const { requestsList, selectedRequest } = requestState
+  const { projectsList } = projectState
 
   const isEdition = selectedRequest ? selectedRequest.uuid : false
-  const selectedProjectId = selectedRequest?.parent_folder
 
+  const [tab, setTab] = useState<'form' | 'open'>('form')
   const [deletionConfirmation, setDeletionConfirmation] = useState(false)
 
   const [loading, setLoading] = useState(true)
 
   const [currentRequest, setCurrentRequest] = useState<RequestType | null>(selectedRequest)
   const [projectName, onChangeProjectName] = useState<string>('Projet de recherche')
+  const [openRequest, setOpenRequest] = useState<string | null>(null)
 
-  const [projectList, onSetProjectList] = useState<ProjectType[]>([])
-
-  const [error, setError] = useState<
-    'error_title' | 'error_description' | 'error_project' | 'error_project_name' | null
-  >(null)
+  const [error, setError] = useState<'error_title' | 'error_project' | 'error_project_name' | null>(null)
 
   const _onChangeValue = (key: 'name' | 'parent_folder' | 'description', value: string) => {
     setCurrentRequest((prevState) =>
@@ -76,14 +73,13 @@ const ModalCreateNewRequest: React.FC<{
     if (projectState && projectState.projectsList && projectState.projectsList.length > 0) {
       projectsList = projectState.projectsList
     } else {
-      const myProjects = (await fetchProjectsList()) || []
-      projectsList = myProjects.results
+      const myProjects = (await dispatch<any>(fetchProjects())) || []
+      projectsList = myProjects.payload.results
     }
-    onSetProjectList(projectsList)
     // Auto select newset project folder
     // + Auto set the new project folder with 'Projet de recherche ...'
     if (projectsList && projectsList.length > 0) {
-      if (!isEdition && !selectedProjectId) {
+      if (!isEdition && !selectedRequest?.parent_folder) {
         _onChangeValue('parent_folder', projectsList[0].uuid)
       }
       onChangeProjectName(`Projet de recherche ${projectsList.length || ''}`)
@@ -95,9 +91,14 @@ const ModalCreateNewRequest: React.FC<{
 
   const _fetchRequestNumber = async () => {
     if (isEdition) return
-    const requestResponse = await fetchRequestsList()
-    if (!requestResponse) return
-    _onChangeValue('name', `Nouvelle requête ${(requestResponse.count || 0) + 1}`)
+
+    if (requestState && requestState.requestsList && requestState.requestsList.length > 0) {
+      _onChangeValue('name', `Nouvelle requête ${(requestState?.count || 0) + 1}`)
+    } else {
+      const requestResponse = await dispatch<any>(fetchRequests())
+      if (!requestResponse) return
+      _onChangeValue('name', `Nouvelle requête ${(requestResponse?.payload?.count || 0) + 1}`)
+    }
   }
 
   useEffect(() => {
@@ -126,7 +127,7 @@ const ModalCreateNewRequest: React.FC<{
     if (loading || currentRequest === null) return
 
     setLoading(true)
-    if (!currentRequest.name) {
+    if (!currentRequest.name || (currentRequest.name && currentRequest.name.length > 255)) {
       setLoading(false)
       return setError(ERROR_TITLE)
     }
@@ -141,7 +142,7 @@ const ModalCreateNewRequest: React.FC<{
 
     if (currentRequest.parent_folder === NEW_PROJECT_ID) {
       // Create a project before
-      const newProject = await addProject({ uuid: '', name: projectName })
+      const newProject = await services.projects.addProject({ uuid: '', name: projectName })
       if (newProject) {
         currentRequest.parent_folder = newProject.uuid
       }
@@ -152,6 +153,12 @@ const ModalCreateNewRequest: React.FC<{
       dispatch<any>(editRequest({ editedRequest: currentRequest }))
     } else {
       dispatch<any>(addRequest({ newRequest: currentRequest }))
+    }
+  }
+
+  const handleConfirmOpen = () => {
+    if (tab === 'open' && openRequest !== null) {
+      dispatch<any>(fetchRequestCohortCreation({ requestId: openRequest }))
     }
   }
 
@@ -171,95 +178,62 @@ const ModalCreateNewRequest: React.FC<{
         open
         aria-labelledby="form-dialog-title"
       >
-        <DialogTitle className={classes.title}>{isEdition ? 'Modification' : 'Création'} d'une requête</DialogTitle>
+        {tab === 'form' ? (
+          <DialogTitle className={classes.title}>{isEdition ? 'Modification' : 'Création'} d'une requête</DialogTitle>
+        ) : (
+          <DialogTitle className={classes.title}>Ouvrir une requête</DialogTitle>
+        )}
         <DialogContent>
           {loading || currentRequest === null ? (
             <Grid container direction="column" justify="center" alignItems="center" className={classes.inputContainer}>
               <CircularProgress />
             </Grid>
+          ) : tab === 'form' ? (
+            <RequestForm
+              currentRequest={currentRequest}
+              onChangeValue={_onChangeValue}
+              error={error}
+              projectName={projectName}
+              onChangeProjectName={onChangeProjectName}
+              projectList={projectsList}
+            />
           ) : (
-            <>
-              <Grid container direction="column" className={classes.inputContainer}>
-                <Typography variant="h3">Nom de la requête :</Typography>
-                <TextField
-                  placeholder="Nom de la requête"
-                  value={currentRequest.name}
-                  onChange={(e: any) => _onChangeValue('name', e.target.value)}
-                  autoFocus
-                  id="title"
-                  margin="normal"
-                  variant="outlined"
-                  fullWidth
-                  error={error === ERROR_TITLE}
-                />
-              </Grid>
-
-              <Grid container direction="column" className={classes.inputContainer}>
-                <Typography variant="h3">Projet :</Typography>
-
-                <Select
-                  id="criteria-occurrenceComparator-select"
-                  value={currentRequest.parent_folder}
-                  onChange={(event) => _onChangeValue('parent_folder', event.target.value as string)}
-                  variant="outlined"
-                  error={error === ERROR_PROJECT}
-                  style={{ marginTop: 16, marginBottom: 8 }}
-                >
-                  {projectList.map((project, index) => (
-                    <MenuItem key={index} value={project.uuid}>
-                      {project.name}
-                    </MenuItem>
-                  ))}
-                  <MenuItem value={NEW_PROJECT_ID}>Nouveau projet</MenuItem>
-                </Select>
-
-                {currentRequest.parent_folder === NEW_PROJECT_ID && (
-                  <TextField
-                    placeholder="Nom du nouveau projet"
-                    value={projectName}
-                    onChange={(e: any) => onChangeProjectName(e.target.value)}
-                    id="project_name"
-                    margin="normal"
-                    variant="outlined"
-                    fullWidth
-                    error={error === ERROR_PROJECT_NAME}
-                  />
-                )}
-              </Grid>
-
-              <Grid container direction="column" className={classes.inputContainer}>
-                <Typography variant="h3">Description :</Typography>
-                <TextField
-                  placeholder="Description"
-                  value={currentRequest.description}
-                  onChange={(e: any) => _onChangeValue('description', e.target.value)}
-                  id="description"
-                  margin="normal"
-                  variant="outlined"
-                  fullWidth
-                  multiline
-                  rows={5}
-                  rowsMax={8}
-                  error={error === ERROR_DESCRIPTION}
-                />
-              </Grid>
-            </>
+            <RequestList
+              projectList={projectsList}
+              requestsList={requestsList}
+              selectedItem={openRequest}
+              onSelectedItem={(newOpenRequest: string) =>
+                setOpenRequest(newOpenRequest === openRequest ? null : newOpenRequest)
+              }
+            />
           )}
         </DialogContent>
 
         <DialogActions>
-          {isEdition && (
-            <Button disabled={loading} onClick={() => setDeletionConfirmation(true)} className={classes.deleteButton}>
+          {isEdition ? (
+            <Button disabled={loading} onClick={() => setDeletionConfirmation(true)} style={{ color: '#dc3545' }}>
               Supprimer
             </Button>
+          ) : (
+            <Button disabled={loading} onClick={() => setTab(tab === 'form' ? 'open' : 'form')}>
+              {tab === 'form' ? 'Ouvrir' : 'Nouvelle requête'}
+            </Button>
           )}
+
+          <Grid style={{ flex: 1 }} />
 
           <Button disabled={loading} onClick={handleClose} color="secondary">
             Annuler
           </Button>
-          <Button disabled={loading} onClick={handleConfirm} color="primary">
-            {isEdition ? 'Modifier' : 'Créer'}
-          </Button>
+          {tab === 'form' ? (
+            <Button disabled={loading} onClick={handleConfirm} color="primary">
+              {isEdition ? 'Modifier' : 'Créer'}
+            </Button>
+          ) : (
+            <Button disabled={loading || openRequest === null} onClick={handleConfirmOpen} color="primary">
+              Ouvrir
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
 

@@ -3,30 +3,30 @@ import moment from 'moment'
 
 import {
   Button,
+  CircularProgress,
   Chip,
   CssBaseline,
   Grid,
   IconButton,
   InputAdornment,
   InputBase,
-  // Paper,
   Typography
+  // TextField,
+  // Input
 } from '@material-ui/core'
 import Pagination from '@material-ui/lab/Pagination'
 
 import DocumentFilters from '../../Filters/DocumentFilters/DocumentFilters'
 import DocumentList from './DocumentList/DocumentList'
 // import WordCloud from '../Preview/Charts/WordCloud'
-import SortDialog from '../../Filters/SortDialog/SortDialog'
 import DocumentSearchHelp from '../../DocumentSearchHelp/DocumentSearchHelp'
-import { fetchDocuments } from '../../../services/cohortInfos'
+import services from 'services'
 
 import ClearIcon from '@material-ui/icons/Clear'
 import InfoIcon from '@material-ui/icons/Info'
-import SortIcon from '@material-ui/icons/Sort'
-import { ReactComponent as SearchIcon } from '../../../assets/icones/search.svg'
-import { ReactComponent as FilterList } from '../../../assets/icones/filter.svg'
-import { docTypes } from '../../../assets/docTypes.json'
+import { ReactComponent as SearchIcon } from 'assets/icones/search.svg'
+import { ReactComponent as FilterList } from 'assets/icones/filter.svg'
+import { docTypes } from 'assets/docTypes.json'
 
 import { CohortComposition } from 'types'
 import {
@@ -56,24 +56,18 @@ const Documents: React.FC<DocumentsProps> = ({ groupId, deidentifiedBoolean, sor
   const [loadingStatus, setLoadingStatus] = useState(true)
   const [searchInput, setSearchInput] = useState('')
   const [searchMode, setSearchMode] = useState(false)
-  // const [wordcloudData, setWordcloudData] = useState<IExtension[] | undefined>()
   const [open, setOpen] = useState(false)
-  const [openSort, setOpenSort] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [nda, setNda] = useState('')
   const [selectedDocTypes, setSelectedDocTypes] = useState<any[]>([])
   const [startDate, setStartDate] = useState<string | null>(null)
   const [endDate, setEndDate] = useState<string | null>(null)
   const [_sortBy, setSortBy] = useState(sortBy)
-  const [_sortDirection, setSortDirection] = useState(sortDirection)
+  const [_sortDirection, setSortDirection] = useState<'asc' | 'desc'>(sortDirection)
   const [showFilterChip, setShowFilterChip] = useState(false)
+  const [showAreaText, setShowAreaText] = useState(false)
 
   const documentLines = 20
-
-  const sortOptions = [
-    { label: 'Date', code: 'date' },
-    { label: 'Type de document', code: 'type' }
-  ]
 
   const displayingSelectedDocType: any[] = (() => {
     let displayingSelectedDocTypes: any[] = []
@@ -100,7 +94,7 @@ const Documents: React.FC<DocumentsProps> = ({ groupId, deidentifiedBoolean, sor
     return displayingSelectedDocTypes.filter((item, index, array) => array.indexOf(item) === index)
   })()
 
-  const onSearchDocument = (sortBy: string, sortDirection: 'asc' | 'desc', input = searchInput, page = 1) => {
+  const onSearchDocument = async (sortBy: string, sortDirection: 'asc' | 'desc', input = searchInput, page = 1) => {
     if (input !== '') {
       setSearchMode(true)
     } else {
@@ -110,7 +104,7 @@ const Documents: React.FC<DocumentsProps> = ({ groupId, deidentifiedBoolean, sor
 
     const selectedDocTypesCodes = selectedDocTypes.map((docType) => docType.code)
 
-    fetchDocuments(
+    const result = await services.cohorts.fetchDocuments(
       !!deidentifiedBoolean,
       sortBy,
       sortDirection,
@@ -120,35 +114,22 @@ const Documents: React.FC<DocumentsProps> = ({ groupId, deidentifiedBoolean, sor
       nda,
       startDate,
       endDate,
-      groupId,
-      encounters?.map((encounter: any) => encounter.id ?? '').filter((id: string) => id !== '')
+      groupId
     )
-      .then((result) => {
-        if (result) {
-          const {
-            totalDocs,
-            totalAllDocs,
-            documentsList
-            // wordcloudData
-          } = result
-          setDocuments(documentsList)
-          // if (wordcloudData) {
-          //   setWordcloudData(wordcloudData)
-          // }
-          setDocumentsNumber(totalDocs)
-          setAllDocumentsNumber(totalAllDocs)
-          setPage(page)
-        }
-      })
-      .catch((error) => console.error(error))
-      .then(() => {
-        setLoadingStatus(false)
-      })
+
+    if (result) {
+      const { totalDocs, totalAllDocs, documentsList } = result
+      setDocumentsNumber(totalDocs)
+      setAllDocumentsNumber(totalAllDocs)
+      setPage(page)
+      setDocuments(documentsList)
+      setLoadingStatus(false)
+    }
   }
 
   useEffect(() => {
     onSearchDocument(_sortBy, _sortDirection)
-  }, [selectedDocTypes, nda, startDate, endDate]) // eslint-disable-line
+  }, [!!deidentifiedBoolean, selectedDocTypes, nda, startDate, endDate, _sortBy, _sortDirection]) // eslint-disable-line
 
   const handleClearInput = () => {
     setSearchInput('')
@@ -157,10 +138,6 @@ const Documents: React.FC<DocumentsProps> = ({ groupId, deidentifiedBoolean, sor
 
   const handleOpenDialog = () => {
     setOpen(true)
-  }
-
-  const handleOpenSortDialog = () => {
-    setOpenSort(true)
   }
 
   const handleCloseDialog = (submit: boolean) => () => {
@@ -179,11 +156,6 @@ const Documents: React.FC<DocumentsProps> = ({ groupId, deidentifiedBoolean, sor
     }
   }
 
-  const handleCloseSortDialog = (submitSort: boolean) => {
-    setOpenSort(false)
-    submitSort && onSearchDocument(_sortBy, _sortDirection)
-  }
-
   const handleDeleteChip = (filterName: string, value?: string) => {
     switch (filterName) {
       case 'nda':
@@ -192,7 +164,7 @@ const Documents: React.FC<DocumentsProps> = ({ groupId, deidentifiedBoolean, sor
             nda
               .split(',')
               .filter((item) => item !== value)
-              .join()
+              .join(',')
           )
         break
       case 'selectedDocTypes': {
@@ -217,181 +189,195 @@ const Documents: React.FC<DocumentsProps> = ({ groupId, deidentifiedBoolean, sor
     }
   }
 
-  useEffect(() => {
-    onSearchDocument(_sortBy, _sortDirection)
-  }, []) // eslint-disable-line
-
   const documentsToDisplay =
     documents.length > documentLines ? documents.slice((page - 1) * documentLines, page * documentLines) : documents
 
   return (
-    <Grid container direction="column" alignItems="center">
-      <CssBaseline />
-      <Grid container item xs={11} justify="space-between">
-        {/* <Grid container spacing={3}>
-          <Grid item xs={12}>
-            {wordcloudData && (
-              <Paper className={classes.chartOverlay}>
-                <Grid container item className={classes.chartTitle}>
-                  <Typography variant="h3" color="primary">
-                    Mots les plus fréquents
-                  </Typography>
-                </Grid> */}
-        {/* @ts-ignore */}
-        {/* <WordCloud wordcloudData={wordcloudData} />
-              </Paper>
-            )}
-          </Grid>
-        </Grid> */}
-
-        <Grid container item justify="flex-end" className={classes.tableGrid}>
-          <Grid container justify="space-between" alignItems="center">
-            <Typography variant="button">
-              {displayDigit(documentsNumber ?? 0)} / {displayDigit(allDocumentsNumber ?? 0)} document(s)
-            </Typography>
-            <Grid container direction="row" alignItems="center" className={classes.filterAndSort}>
-              <div className={classes.documentButtons}>
-                <Grid item container xs={10} alignItems="center" className={classes.searchBar}>
+    <>
+      <Grid container direction="column" alignItems="center">
+        <CssBaseline />
+        <Grid container item xs={11} justify="space-between">
+          <Grid container item justify="flex-end" className={classes.tableGrid}>
+            <Grid container justify="space-between" alignItems="center">
+              <Typography variant="button">
+                {displayDigit(documentsNumber ?? 0)} / {displayDigit(allDocumentsNumber ?? 0)} document(s)
+              </Typography>
+              <Grid item>
+                <Grid container direction="row" alignItems="center" className={classes.filterAndSort}>
+                  <div className={classes.documentButtons}>
+                    {!showAreaText && (
+                      <Grid item container xs={10} alignItems="center" className={classes.searchBar}>
+                        <InputBase
+                          placeholder="Rechercher dans les documents"
+                          className={classes.input}
+                          value={searchInput}
+                          onChange={handleChangeInput}
+                          onKeyDown={onKeyDown}
+                          endAdornment={
+                            <InputAdornment position="end">
+                              {searchInput && (
+                                <IconButton onClick={handleClearInput}>
+                                  <ClearIcon />
+                                </IconButton>
+                              )}
+                            </InputAdornment>
+                          }
+                        />
+                        <IconButton
+                          type="submit"
+                          aria-label="search"
+                          onClick={() => onSearchDocument(_sortBy, _sortDirection)}
+                        >
+                          <SearchIcon fill="#ED6D91" height="15px" />
+                        </IconButton>
+                      </Grid>
+                    )}
+                    <IconButton type="submit" onClick={() => setHelpOpen(true)}>
+                      <InfoIcon />
+                    </IconButton>
+                    <DocumentSearchHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
+                    <Button
+                      variant="contained"
+                      disableElevation
+                      onClick={handleOpenDialog}
+                      startIcon={<FilterList height="15px" fill="#FFF" />}
+                      className={classes.searchButton}
+                    >
+                      Filtrer
+                    </Button>
+                  </div>
+                </Grid>
+              </Grid>
+              {showAreaText ? (
+                <Grid item className={classes.gridAdvancedSearch}>
                   <InputBase
-                    placeholder="Rechercher dans les documents"
-                    className={classes.input}
+                    className={classes.advancedSearch}
+                    placeholder="recherche avancée dans les documents"
                     value={searchInput}
                     onChange={handleChangeInput}
-                    onKeyDown={onKeyDown}
+                    multiline
+                    rows={3}
                     endAdornment={
                       <InputAdornment position="end">
-                        <IconButton onClick={handleClearInput}>{searchInput && <ClearIcon />}</IconButton>
+                        <IconButton onClick={() => (handleClearInput(), setShowAreaText(false))}>
+                          <ClearIcon />
+                        </IconButton>
+                        <IconButton
+                          type="submit"
+                          aria-label="search"
+                          onClick={() => onSearchDocument(_sortBy, _sortDirection)}
+                        >
+                          <SearchIcon fill="#ED6D91" height="17px" />
+                        </IconButton>
                       </InputAdornment>
                     }
                   />
-                  <IconButton
-                    type="submit"
-                    aria-label="search"
-                    onClick={() => onSearchDocument(_sortBy, _sortDirection)}
-                  >
-                    <SearchIcon fill="#ED6D91" height="15px" />
-                  </IconButton>
                 </Grid>
-                <IconButton type="submit" onClick={() => setHelpOpen(true)}>
-                  <InfoIcon />
-                </IconButton>
-                <DocumentSearchHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
-                <Button
-                  variant="contained"
-                  disableElevation
-                  onClick={handleOpenDialog}
-                  startIcon={<FilterList height="15px" fill="#FFF" />}
-                  className={classes.searchButton}
-                >
-                  Filtrer
-                </Button>
-                <Button
-                  variant="contained"
-                  disableElevation
-                  onClick={handleOpenSortDialog}
-                  startIcon={<SortIcon height="15px" fill="#FFF" />}
-                  className={classes.searchButton}
-                >
-                  Trier
-                </Button>
-                <SortDialog
-                  open={openSort}
-                  onClose={() => handleCloseSortDialog(false)}
-                  onSubmit={() => handleCloseSortDialog(true)}
-                  sortOptions={sortOptions}
+              ) : (
+                <Grid item container xs={12} justify="flex-end">
+                  <Typography variant="h6" style={{ cursor: 'pointer' }} onClick={() => setShowAreaText(true)}>
+                    Recherche avancée
+                  </Typography>
+                </Grid>
+              )}
+            </Grid>
+            <Grid>
+              {showFilterChip &&
+                nda !== '' &&
+                nda
+                  .split(',')
+                  .map((value) => (
+                    <Chip
+                      className={classes.chips}
+                      key={value}
+                      label={value}
+                      onDelete={() => handleDeleteChip('nda', value)}
+                      color="primary"
+                      variant="outlined"
+                    />
+                  ))}
+              {showFilterChip &&
+                displayingSelectedDocType.length > 0 &&
+                displayingSelectedDocType.map((docType) => (
+                  <Chip
+                    className={classes.chips}
+                    key={docType.code}
+                    label={docType.label}
+                    onDelete={() => handleDeleteChip('selectedDocTypes', docType.label)}
+                    color="primary"
+                    variant="outlined"
+                  />
+                ))}
+              {showFilterChip && startDate && (
+                <Chip
+                  className={classes.chips}
+                  label={`Après le : ${moment(startDate).format('DD/MM/YYYY')}`}
+                  onDelete={() => handleDeleteChip('startDate')}
+                  color="primary"
+                  variant="outlined"
+                />
+              )}
+              {showFilterChip && endDate && (
+                <Chip
+                  className={classes.chips}
+                  label={`Avant le : ${moment(endDate).format('DD/MM/YYYY')}`}
+                  onDelete={() => handleDeleteChip('endDate')}
+                  color="primary"
+                  variant="outlined"
+                />
+              )}
+            </Grid>
+            {loadingStatus || deidentifiedBoolean === null ? (
+              <CircularProgress className={classes.loadingSpinner} size={50} />
+            ) : (
+              <>
+                <DocumentList
+                  groupId={groupId}
+                  loading={loadingStatus}
+                  documents={documentsToDisplay}
+                  searchMode={searchMode}
+                  showIpp
+                  deidentified={deidentifiedBoolean}
+                  encounters={encounters}
                   sortBy={_sortBy}
                   onChangeSortBy={setSortBy}
                   sortDirection={_sortDirection}
                   onChangeSortDirection={setSortDirection}
                 />
-              </div>
-            </Grid>
-          </Grid>
-          <Grid>
-            {showFilterChip &&
-              nda !== '' &&
-              nda
-                .split(',')
-                .map((value) => (
-                  <Chip
-                    className={classes.chips}
-                    key={value}
-                    label={value}
-                    onDelete={() => handleDeleteChip('nda', value)}
-                    color="primary"
-                    variant="outlined"
-                  />
-                ))}
-            {showFilterChip &&
-              displayingSelectedDocType.length > 0 &&
-              displayingSelectedDocType.map((docType) => (
-                <Chip
-                  className={classes.chips}
-                  key={docType.code}
-                  label={docType.label}
-                  onDelete={() => handleDeleteChip('selectedDocTypes', docType.label)}
-                  color="primary"
-                  variant="outlined"
+                <Pagination
+                  className={classes.pagination}
+                  count={Math.ceil((documentsNumber ?? 0) / documentLines)}
+                  shape="rounded"
+                  onChange={(event, page) => {
+                    if (documents.length <= documentLines) {
+                      onSearchDocument(_sortBy, _sortDirection, searchInput, page)
+                    } else {
+                      setPage(page)
+                    }
+                  }}
+                  page={page}
                 />
-              ))}
-            {showFilterChip && startDate && (
-              <Chip
-                className={classes.chips}
-                label={`Après le : ${moment(startDate).format('DD/MM/YYYY')}`}
-                onDelete={() => handleDeleteChip('startDate')}
-                color="primary"
-                variant="outlined"
-              />
-            )}
-            {showFilterChip && endDate && (
-              <Chip
-                className={classes.chips}
-                label={`Avant le : ${moment(endDate).format('DD/MM/YYYY')}`}
-                onDelete={() => handleDeleteChip('endDate')}
-                color="primary"
-                variant="outlined"
-              />
+              </>
             )}
           </Grid>
-          <DocumentList
-            groupId={groupId}
-            loading={loadingStatus ?? false}
-            documents={documentsToDisplay}
-            searchMode={searchMode}
-            showIpp={true}
-            deidentified={deidentifiedBoolean}
-            encounters={encounters}
-          />
-          <Pagination
-            className={classes.pagination}
-            count={Math.ceil((documentsNumber ?? 0) / documentLines)}
-            shape="rounded"
-            onChange={(event, page) => {
-              if (documents.length <= documentLines) {
-                onSearchDocument(_sortBy, _sortDirection, searchInput, page)
-              } else {
-                setPage(page)
-              }
-            }}
-            page={page}
-          />
-          <DocumentFilters
-            open={open}
-            onClose={handleCloseDialog(false)}
-            onSubmit={handleCloseDialog(true)}
-            nda={nda}
-            onChangeNda={setNda}
-            selectedDocTypes={selectedDocTypes}
-            onChangeSelectedDocTypes={setSelectedDocTypes}
-            startDate={startDate}
-            onChangeStartDate={setStartDate}
-            endDate={endDate}
-            onChangeEndDate={setEndDate}
-            deidentified={deidentifiedBoolean}
-          />
         </Grid>
       </Grid>
-    </Grid>
+
+      <DocumentFilters
+        open={open}
+        onClose={handleCloseDialog(false)}
+        onSubmit={handleCloseDialog(true)}
+        nda={nda}
+        onChangeNda={setNda}
+        selectedDocTypes={selectedDocTypes}
+        onChangeSelectedDocTypes={setSelectedDocTypes}
+        startDate={startDate}
+        onChangeStartDate={setStartDate}
+        endDate={endDate}
+        onChangeEndDate={setEndDate}
+        deidentified={deidentifiedBoolean}
+      />
+    </>
   )
 }
 

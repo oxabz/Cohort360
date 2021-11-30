@@ -3,6 +3,8 @@ import React, { useState } from 'react'
 import {
   Button,
   Dialog,
+  FormControlLabel,
+  Checkbox,
   DialogActions,
   DialogContent,
   DialogTitle,
@@ -17,13 +19,14 @@ const ERROR_TITLE = 'error_title'
 const ERROR_DESCRIPTION = 'error_description'
 
 const ModalCohortTitle: React.FC<{
-  onExecute?: (cohortName: string, cohortDescription: string) => void
+  onExecute?: (cohortName: string, cohortDescription: string, globalCount: boolean) => void
   onClose: () => void
 }> = ({ onExecute, onClose }) => {
   const classes = useStyles()
 
   const [title, onChangeTitle] = useState('')
   const [description, onChangeDescription] = useState('')
+  const [globalCount, onCheckGlobalCount] = useState(false)
   const [error, setError] = useState<'error_title' | 'error_description' | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -31,13 +34,13 @@ const ModalCohortTitle: React.FC<{
 
   const handleConfirm = () => {
     setLoading(true)
-    if (!title) {
+    if (!title || (title && title.length > 255)) {
       setLoading(false)
       return setError(ERROR_TITLE)
     }
 
     if (onExecute) {
-      onExecute(title, description)
+      onExecute(title, description, globalCount)
     }
   }
 
@@ -57,6 +60,7 @@ const ModalCohortTitle: React.FC<{
             variant="outlined"
             fullWidth
             error={error === ERROR_TITLE}
+            helperText={error === ERROR_TITLE ? 'Le nom est trop long (255 caractère max.)' : ''}
           />
         </Grid>
 
@@ -74,6 +78,18 @@ const ModalCohortTitle: React.FC<{
             rows={5}
             rowsMax={8}
             error={error === ERROR_DESCRIPTION}
+          />
+        </Grid>
+
+        <Grid container direction="column" className={classes.inputContainer}>
+          <FormControlLabel
+            labelPlacement="start"
+            control={<Checkbox checked={globalCount} onChange={(event) => onCheckGlobalCount(event.target.checked)} />}
+            label={
+              <Typography variant="h3">
+                Estimer le nombre de patients répondant à vos critères sur le périmètre de l'APHP
+              </Typography>
+            }
           />
         </Grid>
       </DialogContent>

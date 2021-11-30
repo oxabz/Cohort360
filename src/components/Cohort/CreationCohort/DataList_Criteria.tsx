@@ -7,26 +7,37 @@ import SupportedForm from './DiagramView/components/LogicalOperator/components/C
 import CCAMForm from './DiagramView/components/LogicalOperator/components/CriteriaRightPanel/CCAM'
 import Cim10Form from './DiagramView/components/LogicalOperator/components/CriteriaRightPanel/Cim10Form'
 import GhmForm from './DiagramView/components/LogicalOperator/components/CriteriaRightPanel/GHM'
+import MedicationForm from './DiagramView/components/LogicalOperator/components/CriteriaRightPanel/MedicationForm'
 
 // Fetcher
 import {
-  // fetchAdmissionModes,
+  fetchAdmissionModes,
   fetchEntryModes,
   fetchExitModes,
   fetchPriseEnChargeType,
   fetchTypeDeSejour,
-  fetchFileStatus
-} from '../../../services/cohortCreation/fetchEncounter'
-import { fetchGender, fetchStatus } from '../../../services/cohortCreation/fetchDemographic'
+  fetchFileStatus,
+  fetchReason,
+  fetchDestination,
+  fetchProvenance,
+  fetchAdmission
+} from 'services/cohortCreation/fetchEncounter'
+import { fetchGender, fetchStatus } from 'services/cohortCreation/fetchDemographic'
 import {
   fetchStatusDiagnostic,
   fetchDiagnosticTypes,
   fetchCim10Diagnostic,
   fetchCim10Hierarchy
-} from '../../../services/cohortCreation/fetchCondition'
-import { fetchCcamData, fetchCcamHierarchy } from '../../../services/cohortCreation/fetchProcedure'
-import { fetchGhmData, fetchGhmHierarchy } from '../../../services/cohortCreation/fetchClaim'
-import { fetchDocTypes } from '../../../services/cohortCreation/fetchComposition'
+} from 'services/cohortCreation/fetchCondition'
+import { fetchCcamData, fetchCcamHierarchy } from 'services/cohortCreation/fetchProcedure'
+import { fetchGhmData, fetchGhmHierarchy } from 'services/cohortCreation/fetchClaim'
+import { fetchDocTypes } from 'services/cohortCreation/fetchComposition'
+import {
+  fetchAtcData,
+  fetchAtcHierarchy,
+  fetchPrescriptionTypes,
+  fetchAdministrations
+} from 'services/cohortCreation/fetchMedication'
 
 // ├── Mes variables
 // ├── Patients
@@ -36,12 +47,12 @@ import { fetchDocTypes } from '../../../services/cohortCreation/fetchComposition
 // │   ├── Diagnostics
 // │   ├── Actes
 // │   ├── GHM
+// ├── Médicaments
+// │   ├── Prescription - Dispension - Administration
 // ├── Biologie/Microbiologie
 // │   ├── Biologie
 // │   ├── Microbiologie
 // ├── Physiologie
-// ├── Médicaments
-// │   ├── Prescription - Dispension - Administration
 
 const criteriaList: CriteriaItemType[] = [
   {
@@ -62,24 +73,32 @@ const criteriaList: CriteriaItemType[] = [
   },
   {
     id: 'Encounter',
-    title: 'Visites',
+    title: 'Prise en charge',
     color: '#0063AF',
     components: SupportedForm,
     data: {
-      // admissionModes: 'loading',
+      admissionModes: 'loading',
       entryModes: 'loading',
       exitModes: 'loading',
       priseEnChargeType: 'loading',
       typeDeSejour: 'loading',
-      fileStatus: 'loading'
+      fileStatus: 'loading',
+      reason: 'loading',
+      destination: 'loading',
+      provenance: 'loading',
+      admission: 'loading'
     },
     fetch: {
-      // fetchAdmissionModes,
+      fetchAdmissionModes,
       fetchEntryModes,
       fetchExitModes,
       fetchPriseEnChargeType,
       fetchTypeDeSejour,
-      fetchFileStatus
+      fetchFileStatus,
+      fetchReason,
+      fetchDestination,
+      fetchProvenance,
+      fetchAdmission
     }
   },
   {
@@ -128,6 +147,15 @@ const criteriaList: CriteriaItemType[] = [
     ]
   },
   {
+    id: 'Medication',
+    // title: 'Médicaments (Prescription - Dispension - Administration)',
+    title: 'Médicaments (Prescription - Administration)',
+    color: '#0063AF',
+    components: MedicationForm,
+    data: { atcData: 'loading', atcHierarchy: 'loading', prescriptionTypes: 'loading', administrations: 'loading' },
+    fetch: { fetchAtcData, fetchAtcHierarchy, fetchPrescriptionTypes, fetchAdministrations }
+  },
+  {
     id: 'biologie_microbiologie',
     title: 'Biologie/Microbiologie',
     color: '#808080',
@@ -158,22 +186,6 @@ const criteriaList: CriteriaItemType[] = [
     disabled: true,
     data: null,
     components: null
-  },
-  {
-    id: 'médicaments',
-    title: 'Médicaments',
-    color: '#808080',
-    components: null,
-    subItems: [
-      {
-        id: 'prescription_dispension_administration',
-        title: 'Prescription - Dispension - Administration',
-        components: null,
-        color: '#808080',
-        disabled: true,
-        data: null
-      }
-    ]
   }
 ]
 

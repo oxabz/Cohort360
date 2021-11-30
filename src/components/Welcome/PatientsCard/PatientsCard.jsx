@@ -4,7 +4,7 @@ import Button from '@material-ui/core/Button'
 import useStyles from './styles'
 import Title from '../../Title'
 import CircularProgress from '@material-ui/core/CircularProgress'
-import { fetchPatientsCount } from 'services/patient'
+import services from 'services'
 
 import displayDigit from 'utils/displayDigit'
 
@@ -14,10 +14,16 @@ const PatientSearchCard = () => {
   const classes = useStyles()
 
   useEffect(() => {
-    setLoading(true)
-    fetchPatientsCount()
-      .then((patientNumber) => setPatientNb(patientNumber))
-      .then(() => setLoading(false))
+    const _fetchPatientsCount = async () => {
+      if (typeof services.patients.fetchPatientsCount !== 'function') return
+
+      setLoading(true)
+      const patientNumber = await services.patients.fetchPatientsCount()
+      setPatientNb(patientNumber)
+      setLoading(false)
+    }
+
+    _fetchPatientsCount()
   }, [])
 
   return (

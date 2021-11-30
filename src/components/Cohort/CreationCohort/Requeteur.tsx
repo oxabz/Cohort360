@@ -87,13 +87,26 @@ const Requeteur = () => {
    *  - Create it with `createCohort`
    *  - Link fhir result with the back end, call /cohorts/
    */
-  const _onExecute = (cohortName: string, cohortDescription: string) => {
+  const _onExecute = (cohortName: string, cohortDescription: string, globalCount: boolean) => {
     const _createCohort = async () => {
       if (!json) return
 
-      await createCohort(json, count?.uuid, currentSnapshot, requestId, cohortName, cohortDescription)
-      dispatch<any>(resetCohortCreation())
-      history.push(`/accueil`)
+      const createCohortResult = await createCohort(
+        json,
+        count?.uuid,
+        currentSnapshot,
+        requestId,
+        cohortName,
+        cohortDescription,
+        globalCount
+      )
+
+      if (createCohortResult && createCohortResult.status === 201) {
+        dispatch<any>(resetCohortCreation())
+        history.push(`/accueil`)
+      } else {
+        console.log('createCohortResult :>> ', createCohortResult)
+      }
     }
 
     _createCohort()
@@ -141,7 +154,14 @@ const Requeteur = () => {
   }
 
   const _canExecute: () => boolean = () => {
-    if (!json || !count?.uuid || !currentSnapshot || !requestId) {
+    if (
+      !json ||
+      !count?.uuid ||
+      count.status === 'failed' ||
+      count.status === 'error' ||
+      !currentSnapshot ||
+      !requestId
+    ) {
       return false
     }
     return true

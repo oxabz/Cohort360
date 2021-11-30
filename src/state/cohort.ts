@@ -8,16 +8,12 @@
 
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit'
 import { RootState } from 'state'
+import { CohortType } from 'types'
 
 import { logout, login } from './me'
-
-import {
-  fetchCohortsList,
-  addCohort as addCohortAPI,
-  editCohort as editCohortAPI,
-  deleteCohort as deleteCohortAPI,
-  CohortType
-} from 'services/myProjects'
+import { fetchExploredCohortInBackground } from './exploredCohort'
+import { initUserCohortsThunk } from './userCohorts'
+import services from 'services'
 
 export type CohortState = {
   loading: boolean
@@ -38,20 +34,33 @@ const initialState: CohortState = localStorageCohort ? JSON.parse(localStorageCo
 
 type FetchCohortListReturn = {
   count: number
-  selectedCohort: null
+  selectedCohort?: null
   cohortsList: CohortType[]
 }
 
 const fetchCohorts = createAsyncThunk<FetchCohortListReturn, void, { state: RootState }>(
   'cohort/fetchCohorts',
-  async (DO_NOT_USE, { getState }) => {
+  async (DO_NOT_USE, { getState, dispatch }) => {
     try {
       const state = getState().cohort
+      const providerId = getState().me?.id ?? '0'
 
       const oldProjectList = state.cohortsList || []
-      const cohorts = (await fetchCohortsList()) || []
+      const cohorts = (await services.projects.fetchCohortsList((+providerId).toString(), 100, 0)) || {}
 
-      if (state.count === cohorts.count) {
+      let forceRefresh =
+        oldProjectList.some(
+          (cohort) =>
+            !cohort.fhir_group_id &&
+            (cohort.request_job_status === 'pending' || cohort.request_job_status === 'started')
+        ) ||
+        cohorts?.results?.some(
+          (cohort) =>
+            !cohort.fhir_group_id &&
+            (cohort.request_job_status === 'pending' || cohort.request_job_status === 'started')
+        )
+
+      if (state.count === cohorts.count && !forceRefresh) {
         return {
           count: state.count,
           selectedCohort: null,
@@ -62,7 +71,11 @@ const fetchCohorts = createAsyncThunk<FetchCohortListReturn, void, { state: Root
       let cohortList = cohorts.results || []
       // cohortList.length <= 100, check fetchCohortsList() for more information
       if (cohorts.count > cohortList.length) {
-        const newResult = await fetchCohortsList(cohorts.count - cohortList.length, cohortList.length)
+        const newResult = await services.projects.fetchCohortsList(
+          (+providerId).toString(),
+          cohorts.count - cohortList.length,
+          cohortList.length
+        )
         // Add elements to cohortList array and filter doublon
         cohortList = [...cohortList, ...(newResult.results || [])]
         cohortList = cohortList.filter((item, index, array) => {
@@ -70,6 +83,16 @@ const fetchCohorts = createAsyncThunk<FetchCohortListReturn, void, { state: Root
           const currentIndex = foundItem ? array.indexOf(foundItem) : -1
           return index === currentIndex
         })
+      }
+
+      forceRefresh = forceRefresh
+        ? true
+        : cohortList.some(
+            (cohort) => cohort.request_job_status === 'pending' || cohort.request_job_status === 'started'
+          )
+
+      if (forceRefresh) {
+        dispatch(fetchCohortInBackGround(cohortList))
       }
 
       return {
@@ -83,6 +106,41 @@ const fetchCohorts = createAsyncThunk<FetchCohortListReturn, void, { state: Root
     }
   }
 )
+
+const sleep = (m: any) => new Promise((r: any) => setTimeout(r, m))
+
+const fetchCohortInBackGround = createAsyncThunk<FetchCohortListReturn, CohortType[], { state: RootState }>(
+  'cohort/fetchCohortInBackGround',
+  async (oldCohortsList, { getState }) => {
+    try {
+      const providerId = getState().me?.id ?? '0'
+
+      let count = 0
+      let cohortsList = oldCohortsList
+
+      while (
+        cohortsList?.some(
+          (cohort) =>
+            !cohort.fhir_group_id &&
+            (cohort.request_job_status === 'pending' || cohort.request_job_status === 'started')
+        )
+      ) {
+        const newResult = await services.projects.fetchCohortsList((+providerId).toString(), oldCohortsList.length, 0)
+
+        count = newResult.count
+        cohortsList = newResult.results
+
+        await sleep(2500)
+      }
+
+      return { count, cohortsList }
+    } catch (error) {
+      console.error(error)
+      throw error
+    }
+  }
+)
+
 /**
  * addCohort
  *
@@ -97,12 +155,14 @@ type AddCohortReturn = {
 
 const addCohort = createAsyncThunk<AddCohortReturn, AddCohortParams, { state: RootState }>(
   'cohort/addCohort',
-  async ({ newCohort }, { getState }) => {
+  async ({ newCohort }, { getState, dispatch }) => {
     try {
       const state = getState().cohort
       const cohortsList: CohortType[] = state.cohortsList ?? []
 
-      const createdCohort = await addCohortAPI(newCohort)
+      const createdCohort = await services.projects.addCohort(newCohort)
+
+      dispatch(initUserCohortsThunk())
 
       return {
         selectedCohort: null,
@@ -132,6 +192,7 @@ const editCohort = createAsyncThunk<EditCohortReturn, EditCohortParams, { state:
   async ({ editedCohort }, { getState, dispatch }) => {
     try {
       const state = getState().cohort
+      const stateExploredCohort = getState().exploredCohort
       // eslint-disable-next-line
       let cohortsList: CohortType[] = state.cohortsList ? [...state.cohortsList] : []
       const foundItem = cohortsList.find(({ uuid }) => uuid === editedCohort.uuid)
@@ -141,10 +202,16 @@ const editCohort = createAsyncThunk<EditCohortReturn, EditCohortParams, { state:
       } else {
         const index = cohortsList.indexOf(foundItem)
 
-        const modifiedCohort = await editCohortAPI(editedCohort)
+        const modifiedCohort = await services.projects.editCohort(editedCohort)
 
         cohortsList[index] = modifiedCohort
       }
+
+      if (stateExploredCohort.uuid === editedCohort.uuid) {
+        dispatch(fetchExploredCohortInBackground({ context: 'cohort', id: editedCohort.fhir_group_id }))
+      }
+      dispatch(initUserCohortsThunk())
+
       return {
         selectedCohort: null,
         cohortsList: cohortsList
@@ -169,7 +236,7 @@ type DeleteCohortReturn = {
 
 const deleteCohort = createAsyncThunk<DeleteCohortReturn, DeleteCohortParams, { state: RootState }>(
   'cohort/deleteCohort',
-  async ({ deletedCohort }, { getState }) => {
+  async ({ deletedCohort }, { getState, dispatch }) => {
     try {
       const state = getState().cohort
       // eslint-disable-next-line
@@ -178,10 +245,14 @@ const deleteCohort = createAsyncThunk<DeleteCohortReturn, DeleteCohortParams, { 
       const index = foundItem ? cohortsList.indexOf(foundItem) : -1
       if (index !== -1) {
         // delete item at index
-        await deleteCohortAPI(deletedCohort)
+        await services.projects.deleteCohort(deletedCohort)
 
         cohortsList.splice(index, 1)
       }
+      setTimeout(() => {
+        dispatch(initUserCohortsThunk())
+      }, 500)
+
       return {
         selectedCohort: null,
         cohortsList: cohortsList
@@ -199,6 +270,18 @@ const setCohortSlice = createSlice({
   reducers: {
     clearCohort: () => {
       return defaultInitialState
+    },
+    setAsFavoriteCohort: (state: CohortState, action: PayloadAction<string | null>) => {
+      const cohortsList: CohortType[] = state.cohortsList ? [...state.cohortsList] : []
+      const selectedCohortId = action.payload
+      return {
+        ...state,
+        cohortsList: cohortsList.map((cohortItem) => {
+          return cohortItem.uuid === selectedCohortId
+            ? { ...cohortItem, favorite: !cohortItem.favorite }
+            : { ...cohortItem }
+        })
+      }
     },
     setSelectedCohort: (state: CohortState, action: PayloadAction<string | null>) => {
       const cohortsList: CohortType[] = state.cohortsList ?? []
@@ -244,6 +327,15 @@ const setCohortSlice = createSlice({
     builder.addCase(editCohort.pending, (state) => ({ ...state, loading: true }))
     builder.addCase(editCohort.fulfilled, (state, action) => ({ ...state, ...action.payload, loading: false }))
     builder.addCase(editCohort.rejected, (state) => ({ ...state, loading: false }))
+    // fetchCohortInBackGround
+    builder.addCase(fetchCohortInBackGround.pending, (state) => ({
+      ...state,
+      loading: false
+    }))
+    builder.addCase(fetchCohortInBackGround.fulfilled, (state, action) => ({
+      ...state,
+      ...action.payload
+    }))
     // deleteCohort
     builder.addCase(deleteCohort.pending, (state) => ({ ...state, loading: true }))
     builder.addCase(deleteCohort.fulfilled, (state, action) => ({ ...state, ...action.payload, loading: false }))
@@ -253,4 +345,4 @@ const setCohortSlice = createSlice({
 
 export default setCohortSlice.reducer
 export { fetchCohorts, addCohort, editCohort, deleteCohort }
-export const { clearCohort, setSelectedCohort } = setCohortSlice.actions
+export const { clearCohort, setSelectedCohort, setAsFavoriteCohort } = setCohortSlice.actions

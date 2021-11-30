@@ -20,9 +20,9 @@ import {
   Typography
 } from '@material-ui/core'
 
-import { ReactComponent as CancelIcon } from '../../../../assets/icones/times.svg'
-import { ReactComponent as CheckIcon } from '../../../../assets/icones/check.svg'
-import { ReactComponent as PdfIcon } from '../../../../assets/icones/file-pdf.svg'
+import { ReactComponent as CancelIcon } from 'assets/icones/times.svg'
+import { ReactComponent as CheckIcon } from 'assets/icones/check.svg'
+import { ReactComponent as PdfIcon } from 'assets/icones/file-pdf.svg'
 
 import { FHIR_API_URL } from '../../../../constants'
 
@@ -34,7 +34,8 @@ import {
   IDocumentReference
 } from '@ahryman40k/ts-fhir-types/lib/R4'
 import { getDocumentStatus } from 'utils/documentsFormatter'
-import { fetchDocumentContent } from 'services/cohortInfos'
+import services from 'services'
+// import { fetchDocumentContent } from 'services/cohortInfos'
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`
 
@@ -49,19 +50,18 @@ const DocumentRow: React.FC<DocumentRowTypes> = ({ deidentified, document }) => 
   const [loading, setLoading] = useState(false)
   const [documentContent, setDocumentContent] = useState<any>([])
 
-  const openPdfDialog = (documentId?: string) => {
+  const openPdfDialog = async (documentId?: string) => {
     setDocumentDialogOpen(true)
     if (deidentified && documentId) {
       setLoading(true)
-      fetchDocumentContent(documentId)
-        .then((doc) => {
-          setLoading(false)
-          setDocumentContent(doc)
-        })
-        .catch(() => {
-          setLoading(false)
-          setDocumentContent(null)
-        })
+      const doc = await services.cohorts.fetchDocumentContent(documentId)
+      if (doc) {
+        setLoading(false)
+        setDocumentContent(doc)
+      } else {
+        setLoading(false)
+        setDocumentContent(null)
+      }
     }
   }
 

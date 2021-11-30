@@ -6,11 +6,11 @@ import { withRouter, useParams } from 'react-router'
 
 import { CircularProgress, Grid, Typography } from '@material-ui/core'
 
-import PatientSearchBar from '../../components/PatientSearchBar/PatientSearchBar'
-import TableauPatients from '../../components/TableauPatients/TableauPatients'
+import PatientSearchBar from 'components/PatientSearchBar/PatientSearchBar'
+import TableauPatients from 'components/TableauPatients/TableauPatients'
 
-import { searchPatient } from '../../services/searchPatient'
-import { setExploredCohort } from '../../state/exploredCohort'
+import services from 'services'
+import { setExploredCohort } from 'state/exploredCohort'
 
 import { IPatient } from '@ahryman40k/ts-fhir-types/lib/R4'
 import { SearchByTypes } from 'types'
@@ -33,7 +33,7 @@ const RechercherPatient: React.FC<{}> = () => {
   const [searchInput, setSearchInput] = useState(search ?? '')
   const [total, setTotal] = useState(0)
 
-  const performQueries = (
+  const performQueries = async (
     page: number,
     sortBy: string,
     sortDirection: string,
@@ -42,14 +42,22 @@ const RechercherPatient: React.FC<{}> = () => {
   ) => {
     const nominativeGroupsIds = practitioner ? practitioner.nominativeGroupsIds : []
     setLoading(true)
-    searchPatient(nominativeGroupsIds, page, sortBy, sortDirection, input, searchBy).then((results) => {
+    if (typeof services?.patients?.searchPatient === 'function') {
+      const results = await services.patients.searchPatient(
+        nominativeGroupsIds,
+        page,
+        sortBy,
+        sortDirection,
+        input,
+        searchBy
+      )
       if (results) {
         setPatientResults(results.patientList ?? [])
         setTotal(results.totalPatients ?? 0)
         setShowTable(true)
       }
-      setLoading(false)
-    })
+    }
+    setLoading(false)
   }
 
   const handlePageChange = (event: React.ChangeEvent<unknown>, page: number) => {

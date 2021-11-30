@@ -22,12 +22,12 @@ import PieChart from '../Preview/Charts/PieChart'
 import BarChart from '../Preview/Charts/BarChart'
 import PyramidChart from '../Preview/Charts/PyramidChart'
 
-import { ReactComponent as SearchIcon } from '../../../assets/icones/search.svg'
-import { ReactComponent as FilterList } from '../../../assets/icones/filter.svg'
+import { ReactComponent as SearchIcon } from 'assets/icones/search.svg'
+import { ReactComponent as FilterList } from 'assets/icones/filter.svg'
 import LockIcon from '@material-ui/icons/Lock'
 import ClearIcon from '@material-ui/icons/Clear'
 
-import { fetchPatientList } from '../../../services/cohortInfos'
+import services from 'services'
 import { PatientGenderKind } from '@ahryman40k/ts-fhir-types/lib/R4'
 import {
   CohortPatient,
@@ -96,7 +96,7 @@ const PatientList: React.FC<PatientListProps> = ({
     setOpen(true)
   }
 
-  const fetchPatients = (
+  const fetchPatients = async (
     sortBy: string,
     sortDirection: string,
     input = searchInput,
@@ -109,7 +109,7 @@ const PatientList: React.FC<PatientListProps> = ({
       setPatientData(undefined)
       setAgePyramid(undefined)
     }
-    fetchPatientList(
+    const result = await services.cohorts.fetchPatientList(
       pageValue,
       searchBy,
       input,
@@ -121,21 +121,16 @@ const PatientList: React.FC<PatientListProps> = ({
       groupId,
       includeFacets
     )
-      .then((result) => {
-        if (result) {
-          const { totalPatients, originalPatients, genderRepartitionMap, agePyramidData } = result
-          setPatientsList(originalPatients)
-          if (includeFacets) {
-            setPatientData(getGenderRepartitionSimpleData(genderRepartitionMap))
-            setAgePyramid(agePyramidData)
-          }
-          setTotalPatients(totalPatients)
-        }
-      })
-      .catch((error) => console.error(error))
-      .finally(() => {
-        setLoadingStatus(false)
-      })
+    if (result) {
+      const { totalPatients, originalPatients, genderRepartitionMap, agePyramidData } = result
+      setPatientsList(originalPatients)
+      if (includeFacets) {
+        setPatientData(getGenderRepartitionSimpleData(genderRepartitionMap))
+        setAgePyramid(agePyramidData)
+      }
+      setTotalPatients(totalPatients)
+    }
+    setLoadingStatus(false)
   }
 
   const onSearchPatient = (sortBy = 'given', sortDirection = 'asc', input = searchInput) => {
@@ -319,7 +314,11 @@ const PatientList: React.FC<PatientListProps> = ({
                       onKeyDown={onKeyDown}
                       endAdornment={
                         <InputAdornment position="end">
-                          <IconButton onClick={handleClearInput}>{searchInput && <ClearIcon />}</IconButton>
+                          {searchInput && (
+                            <IconButton onClick={handleClearInput}>
+                              <ClearIcon />
+                            </IconButton>
+                          )}
                         </InputAdornment>
                       }
                     />

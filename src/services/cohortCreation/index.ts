@@ -1,14 +1,48 @@
-import apiBack from '../apiBackCohort'
+import apiBack from '../apiBackend'
 import { CONTEXT } from '../../constants'
 
 import { CohortCreationCounterType } from 'types'
 
+export const createCohort = async (
+  requeteurJson: string | undefined,
+  datedMeasureId: string | undefined,
+  snapshotId: string | undefined,
+  requestId: string | undefined,
+  cohortName: string | undefined,
+  cohortDescription: string | undefined,
+  globalCount: boolean | undefined
+) => {
+  if (!requeteurJson || !datedMeasureId || !snapshotId || !requestId) return null
+  if (globalCount === undefined) globalCount = false
+
+  if (CONTEXT === 'arkhn') {
+    // const request: Cohort_Creation_API_Response = await api.post('QueryServer/api/count', requeteurJson)
+    // const { data } = request
+    return null
+  } else if (CONTEXT === 'fakedata') {
+    return null
+  } else {
+    const cohortResult = await apiBack.post('/explorations/cohorts/', {
+      dated_measure_id: datedMeasureId,
+      request_query_snapshot_id: snapshotId,
+      request_id: requestId,
+      name: cohortName,
+      description: cohortDescription,
+      global_estimate: globalCount
+    })
+
+    return cohortResult
+  }
+}
+
 export const countCohort = async (requeteurJson?: string, snapshotId?: string, requestId?: string, uuid?: string) => {
   if (uuid) {
-    const measureResult = await apiBack.get(`/explorations/dated-measures/${uuid}/`)
+    const measureResult = await apiBack.get<any>(`/explorations/dated-measures/${uuid}/`)
 
     return {
+      date: measureResult?.data?.created_at,
       status: measureResult?.data?.request_job_status,
+      jobFailMsg: measureResult?.data?.request_job_fail_msg,
       uuid: measureResult?.data?.uuid,
       includePatient: measureResult?.data?.measure,
       byrequest: 0,
@@ -28,12 +62,13 @@ export const countCohort = async (requeteurJson?: string, snapshotId?: string, r
     } else if (CONTEXT === 'fakedata') {
       return null
     } else {
-      const measureResult = await apiBack.post('/explorations/dated-measures/', {
+      const measureResult = await apiBack.post<any>('/explorations/dated-measures/create-unique/', {
         request_query_snapshot_id: snapshotId,
         request_id: requestId
       })
 
       return {
+        date: measureResult?.data?.updated_at,
         status: measureResult?.data?.request_job_status,
         uuid: measureResult?.data?.uuid,
         includePatient: 0,
@@ -44,35 +79,6 @@ export const countCohort = async (requeteurJson?: string, snapshotId?: string, r
         male: 0
       }
     }
-  }
-}
-
-export const createCohort = async (
-  requeteurJson: string | undefined,
-  datedMeasureId: string | undefined,
-  snapshotId: string | undefined,
-  requestId: string | undefined,
-  cohortName: string | undefined,
-  cohortDescription: string | undefined
-) => {
-  if (!requeteurJson || !datedMeasureId || !snapshotId || !requestId) return null
-
-  if (CONTEXT === 'arkhn') {
-    // const request: Cohort_Creation_API_Response = await api.post('QueryServer/api/count', requeteurJson)
-    // const { data } = request
-    return null
-  } else if (CONTEXT === 'fakedata') {
-    return null
-  } else {
-    const cohortResult = await apiBack.post('/explorations/cohorts/', {
-      dated_measure_id: datedMeasureId,
-      request_query_snapshot_id: snapshotId,
-      request_id: requestId,
-      name: cohortName,
-      description: cohortDescription
-    })
-
-    return cohortResult
   }
 }
 
@@ -97,7 +103,7 @@ export const fetchRequest = async (requestId: string, snapshotId: string | undef
   } else if (CONTEXT === 'fakedata') {
     return null
   } else {
-    const requestResponse = (await apiBack.get(`/explorations/requests/${requestId}/`)) || {}
+    const requestResponse = (await apiBack.get<any>(`/explorations/requests/${requestId}/`)) || {}
     const requestData = requestResponse?.data ? requestResponse.data : {}
 
     const requestName = requestData.name
@@ -147,7 +153,7 @@ export const fetchRequest = async (requestId: string, snapshotId: string | undef
 
     result = {
       requestName,
-      snapshotsHistory,
+      snapshotsHistory: snapshotsHistory ? snapshotsHistory.reverse() : [],
       json: currentSnapshot ? currentSnapshot.serialized_query : '',
       currentSnapshot: currentSnapshot ? currentSnapshot.uuid : '',
       count: currentSnapshot ? currentSnapshot.dated_measures[0] : {}
