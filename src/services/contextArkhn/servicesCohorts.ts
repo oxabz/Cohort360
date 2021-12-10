@@ -124,6 +124,8 @@ export interface IServicesCohorts {
   ) => Promise<{
     totalDocs: number
     totalAllDocs: number
+    totalPatientDocs: number
+    totalAllPatientDocs: number
     documentsList: IComposition[]
   }>
 
@@ -386,16 +388,15 @@ const servicesCohorts: IServicesCohorts = {
         type: selectedDocTypes.length > 0 ? selectedDocTypes.join(',') : '',
         'encounter.identifier': nda,
         minDate: startDate ?? '',
-        maxDate: endDate ?? ''
+        maxDate: endDate ?? '',
+        uniqueFacet: ['patient']
       }),
-      !!searchInput ||
-      !!selectedDocTypes ||
-      !!nda ||
-      (startDate ? [startDate, endDate ? endDate : ''] : endDate ? [endDate] : []).length > 0
+      !!searchInput || selectedDocTypes.length > 0 || !!nda || !!startDate || !!endDate
         ? fetchComposition({
             status: 'final',
             _list: groupId ? [groupId] : [],
-            size: 0
+            size: 0,
+            uniqueFacet: ['patient']
           })
         : null
     ])
@@ -404,11 +405,30 @@ const servicesCohorts: IServicesCohorts = {
     const totalAllDocs =
       allDocsList !== null ? (allDocsList?.data?.resourceType === 'Bundle' ? allDocsList.data.total : 0) : totalDocs
 
+    const totalPatientDocs =
+      docsList?.data?.resourceType === 'Bundle'
+        ? (
+            docsList?.data?.meta?.extension?.find((extension) => extension.url === 'unique-patient') || {
+              valueDecimal: 0
+            }
+          ).valueDecimal
+        : 0
+    const totalAllPatientDocs =
+      allDocsList !== null
+        ? (
+            allDocsList?.data?.meta?.extension?.find((extension) => extension.url === 'unique-patient') || {
+              valueDecimal: 0
+            }
+          ).valueDecimal
+        : totalPatientDocs
+
     const documentsList = await getDocumentInfos(deidentifiedBoolean, getApiResponseResources(docsList), groupId)
 
     return {
       totalDocs: totalDocs ?? 0,
       totalAllDocs: totalAllDocs ?? 0,
+      totalPatientDocs: totalPatientDocs ?? 0,
+      totalAllPatientDocs: totalAllPatientDocs ?? 0,
       documentsList
     }
   },
