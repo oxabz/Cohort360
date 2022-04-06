@@ -36,6 +36,7 @@ const PatientDocs: React.FC<PatientDocsProps> = ({ groupId }) => {
   const totalAllDoc = patient?.documents?.total ?? 0
 
   const patientDocumentsState = patient?.documents?.list ?? []
+  const deidentifiedBoolean = patient?.deidentified ?? false
 
   const [page, setPage] = useState(1)
 
@@ -274,7 +275,7 @@ const PatientDocs: React.FC<PatientDocsProps> = ({ groupId }) => {
         loading={loading}
         documents={patientDocumentsState}
         searchMode={searchMode}
-        deidentified={false}
+        deidentified={deidentifiedBoolean}
         sortBy={sortBy}
         onChangeSortBy={setSortBy}
         sortDirection={sortDirection}
@@ -301,7 +302,7 @@ const PatientDocs: React.FC<PatientDocsProps> = ({ groupId }) => {
         onChangeStartDate={(startDate: string | null) => onChangeOptions('startDate', startDate)}
         endDate={filters.endDate}
         onChangeEndDate={(endDate: string | null) => onChangeOptions('endDate', endDate)}
-        deidentified={false}
+        deidentified={deidentifiedBoolean}
       />
     </Grid>
   )
