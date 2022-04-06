@@ -4,10 +4,16 @@ export const ID_TOKEN_STORAGE_KEY = 'ARKHN_ID_TOKEN'
 export const TOKEN_DATA_STORAGE_KEY = 'ARKHN_TOKEN_DATA'
 export const STATE_STORAGE_KEY = 'ARKHN_AUTH_STATE'
 
+export const API_RESOURCE_TAG = process.env.REACT_APP_DEV_API_RESOURCE_TAG
+  ? '&_tag=' + process.env.REACT_APP_DEV_API_RESOURCE_TAG
+  : ''
+
 export const CLIENT_ID = 'irrelevant'
 export const CLIENT_SECRET = 'irrelevant'
 export const BACK_API_URL =
   process.env.NODE_ENV !== 'development' ? '{BACK_API_URL}' : process.env.REACT_APP_BACK_API_URL
+export const PORTAIL_API_URL =
+  process.env.NODE_ENV !== 'development' ? '{PORTAIL_API_URL}' : process.env.REACT_APP_PORTAIL_API_URL
 export const REQUEST_API_URL =
   process.env.NODE_ENV !== 'development' ? '{REQUEST_API_URL}' : process.env.REACT_APP_REQUEST_API_URL
 export const FHIR_API_URL =
