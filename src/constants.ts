@@ -25,6 +25,8 @@ export const TOKEN_URL = 'irrelevant'
 export const REVOKE_URL = 'irrelevant'
 export const LOGIN_REDIRECT_URL = 'irrelevant'
 
+export const JWT_URL = process.env.NODE_ENV !== 'development' ? '{JWT_URL}' : process.env.REACT_APP_JWT_URL
+
 export const CONTEXT =
   process.env.NODE_ENV !== 'development' ? '{CONTEXT}' : (process.env.REACT_APP_CONTEXT as ContextType)
 
