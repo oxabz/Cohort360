@@ -25,8 +25,7 @@ export const TOKEN_URL = 'irrelevant'
 export const REVOKE_URL = 'irrelevant'
 export const LOGIN_REDIRECT_URL = 'irrelevant'
 
-export const CONTEXT =
-  process.env.NODE_ENV !== 'development' ? '{CONTEXT}' : (process.env.REACT_APP_CONTEXT as ContextType)
+export const CONTEXT = process.env.REACT_APP_CONTEXT as ContextType
 
 console.log('CONTEXT before', CONTEXT)
 console.log('process', process.env)
