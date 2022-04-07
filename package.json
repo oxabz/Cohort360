@@ -1,6 +1,6 @@
 {
   "name": "cohort360_react",
-  "version": "2.12.2",
+  "version": "2.12.2-debug",
   "private": true,
   "dependencies": {
     "@apollo/react-hooks": "^4.0.0",
