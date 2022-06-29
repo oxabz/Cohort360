@@ -83,31 +83,39 @@ export interface IServicePerimeters {
 
 const servicesPerimeters: IServicePerimeters = {
   fetchPerimetersInfos: async (perimetersId) => {
-    let permieters
-    let perimeters : IGroup[] = []
+    const perimetersResp = await fetchGroup({
+      characteristic: ['perimeter_holder'],
+      'managing-entity': [`Organization/${perimetersId}`]
+    })
+    const perimetersData = getApiResponseResources(perimetersResp) ?? []
+    const perimterGroupID = perimetersData.map((perimeter) => perimeter.id).filter((x): x is string => x !== undefined)
 
-    const [perimetersResp, patientsResp, encountersResp] = await Promise.all([
-      fetchGroup({
-        _id: perimetersId
-      }),
+    const patientsId = perimetersData
+      ?.map((perimeter) =>
+        perimeter.member
+          ?.map((member) => member.entity.reference)
+          .filter((x): x is string => x !== undefined)
+          .map((member) => member.split('/')[1])
+      )
+      .flat()
+      .filter((x): x is string => x !== undefined)
+
+    const [patientsResp, encountersResp] = await Promise.all([
       fetchPatient({
-        pivotFacet: ['age_gender', 'deceased_gender'],
-        _list: perimetersId.split(','),
-        size: 20,
-        _sort: 'given',
+        _id: patientsId?.join(','),
+        _count: 20,
         _elements: ['gender', 'name', 'birthDate', 'deceased', 'identifier', 'extension']
       }),
       fetchEncounter({
-        facet: ['class', 'visit-year-month-gender-facet'],
-        _list: perimetersId.split(','),
-        size: 0,
+        'service-provider': `Organization/${perimetersId}`,
+        _count: 0,
         type: 'VISIT'
       })
     ])
 
-    const cohort = await servicesPerimeters.fetchPerimetersRights(getApiResponseResources(perimetersResp) ?? [])
+    const cohort = await servicesPerimeters.fetchPerimetersRights(perimetersData)
 
-    const totalPatients = patientsResp?.data?.resourceType === 'Bundle' ? patientsResp.data.total : 0
+    const totalPatients = perimetersData?.map((p) => p.member?.length ?? 0).reduce((a, b) => a + b)
 
     const originalPatients = getApiResponseResources(patientsResp)
 
@@ -253,6 +261,7 @@ const servicesPerimeters: IServicePerimeters = {
           }
         })
       }
+      console.log('organizationList', organizationList)
       return organizationList
     } catch (error) {
       console.error('Error (getPerimeters) :', error)
@@ -263,11 +272,7 @@ const servicesPerimeters: IServicePerimeters = {
   getScopePerimeters: async (practitionerId) => {
     if (!practitionerId) return []
 
-    console.log('getScopePerimeters', practitionerId)
-
     const perimetersResults = (await servicesPerimeters.getPerimeters()) ?? []
-
-    console.log('getScopePerimeters', perimetersResults)
 
     let scopeRows: ScopeTreeRow[] = []
 
@@ -278,9 +283,6 @@ const servicesPerimeters: IServicePerimeters = {
       scopeRow.quantity = getQuantity(perimetersResult.extension)
       scopeRow.access = getAccessName(perimetersResult.extension)
       scopeRow.subItems = await servicesPerimeters.getScopeSubItems(perimetersResult as ScopeTreeRow)
-
-      console.log('getScopePerimeters', scopeRow)
-
       scopeRows = [...scopeRows, scopeRow]
     }
 
