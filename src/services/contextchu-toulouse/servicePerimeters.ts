@@ -85,11 +85,9 @@ export interface IServicePerimeters {
 const servicesPerimeters: IServicePerimeters = {
   fetchPerimetersInfos: async (perimetersId) => {
     const perimetersResp = await fetchGroup({
-      characteristic: ['perimeter_holder'],
-      'managing-entity': [`Organization/${perimetersId}`]
+      _id: perimetersId
     })
     const perimetersData = getApiResponseResources(perimetersResp) ?? []
-    const perimterGroupID = perimetersData.map((perimeter) => perimeter.id).filter((x): x is string => x !== undefined)
 
     const patientsId = perimetersData
       ?.map((perimeter) =>
@@ -131,10 +129,16 @@ const servicesPerimeters: IServicePerimeters = {
       patientsResp?.data?.resourceType === 'Bundle'
         ? getAgeRepartitionMapAphp(ageFacet && ageFacet[0] && ageFacet[0].extension)
         : undefined
-    const genderRepartitionMap =
-      patientsResp?.data?.resourceType === 'Bundle'
-        ? getGenderRepartitionMapAphp(deceasedFacet && deceasedFacet[0] && deceasedFacet[0].extension)
-        : undefined
+    const genderRepartitionMap = {
+      female: { deceased: 1, alive: 2 },
+      male: { deceased: 3, alive: 4 },
+      unknown: { deceased: 5, alive: 6 },
+      other: { deceased: 7, alive: 8 },
+    }
+    
+      // patientsResp?.data?.resourceType === 'Bundle'
+      //   ? getGenderRepartitionMapAphp(deceasedFacet && deceasedFacet[0] && deceasedFacet[0].extension)
+      //   : undefined
     const monthlyVisitData =
       encountersResp?.data?.resourceType === 'Bundle'
         ? getVisitRepartitionMapAphp(visitFacet && visitFacet[0] && visitFacet[0].extension)
