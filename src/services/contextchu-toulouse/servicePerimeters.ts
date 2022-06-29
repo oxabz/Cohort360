@@ -11,6 +11,7 @@ import { getApiResponseResources } from 'utils/apiHelpers'
 import { fetchGroup, fetchPatient, fetchEncounter, fetchOrganization } from './callApi'
 
 import apiBackend from '../apiBackend'
+import { number } from 'prop-types'
 
 const loadingItem: ScopeTreeRow = { id: 'loading', name: 'loading', quantity: 0, subItems: [] }
 
@@ -261,7 +262,7 @@ const servicesPerimeters: IServicePerimeters = {
           }
         })
       }
-      console.log('organizationList', organizationList)
+      organizationList = await Promise.all(organizationList.map(addCohortID))
       return organizationList
     } catch (error) {
       console.error('Error (getPerimeters) :', error)
@@ -353,8 +354,10 @@ const servicesPerimeters: IServicePerimeters = {
 
       if (!organization) continue
 
-      const organizationData = getApiResponseResources(organization) || []
+      let organizationData = getApiResponseResources(organization) || []
       if (organizationData.length === 0) continue
+
+      organizationData = await Promise.all(organizationData.map(addCohortID))
 
       for (const organizationItem of organizationData) {
         const scopeRow: ScopeTreeRow = organizationItem as ScopeTreeRow
@@ -460,4 +463,20 @@ const getAccessName = (extension?: IExtension[]) => {
     default:
       return 'Nominatif'
   }
+}
+
+const addCohortID = async (organization: IOrganization) => {
+  const perimetersResp = await fetchGroup({
+    characteristic: ['perimeter_holder'],
+    'managing-entity': [`Organization/${organization.id}`]
+  })
+  const perimetersData = getApiResponseResources(perimetersResp) ?? []
+  const perimterGroupID = perimetersData.map((perimeter) => perimeter.id).filter((x): x is string => x !== undefined)[0]
+
+  organization.extension = [
+    ...(organization.extension ?? []),
+    { url: 'cohort-id', valueInteger: Number.parseInt(perimterGroupID) ?? 0 }
+  ]
+
+  return organization
 }
