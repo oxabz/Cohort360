@@ -195,14 +195,14 @@ const servicesCohorts: IServiceCohorts = {
       fetchPatient({
         pivotFacet: ['age_gender', 'deceased_gender'],
         _list: [cohortId],
-        size: 20,
+        _count: 20,
         _sort: 'given',
         _elements: ['gender', 'name', 'birthDate', 'deceased', 'identifier', 'extension']
       }),
       fetchEncounter({
         facet: ['class', 'visit-year-month-gender-facet'],
         _list: [cohortId],
-        size: 0,
+        _count: 0,
         type: 'VISIT'
       })
     ])
@@ -306,7 +306,7 @@ const servicesCohorts: IServiceCohorts = {
     }
 
     const patientsResp = await fetchPatient({
-      size: 20,
+      _count: 20,
       offset: page ? (page - 1) * 20 : 0,
       _sort: sortBy,
       sortDirection: sortDirection === 'desc' ? 'desc' : 'asc',
@@ -362,7 +362,7 @@ const servicesCohorts: IServiceCohorts = {
   ) => {
     const [docsList, allDocsList] = await Promise.all([
       fetchComposition({
-        size: 20,
+        _count: 20,
         offset: page ? (page - 1) * 20 : 0,
         _sort: sortBy,
         sortDirection: sortDirection === 'desc' ? 'desc' : 'asc',
@@ -381,7 +381,7 @@ const servicesCohorts: IServiceCohorts = {
         ? fetchComposition({
             status: 'final',
             _list: groupId ? [groupId] : [],
-            size: 0,
+            _count: 0,
             uniqueFacet: ['patient']
           })
         : null

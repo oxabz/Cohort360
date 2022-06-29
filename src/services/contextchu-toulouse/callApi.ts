@@ -66,10 +66,11 @@ type fetchGroupProps = {
   _list?: string[] // ID List of Groups
   provider?: string // Provider ID
   'managing-entity'?: string[] // ID List of organization
+  characteristic?: string[] // ID List of Characteristic
   _elements?: ('name' | 'managingEntity')[]
 }
 export const fetchGroup = async (args: fetchGroupProps) => {
-  const { _id, provider } = args
+  const { _id, provider, characteristic } = args
   let { _list, _elements } = args
   let managingEntity = args['managing-entity']
 
@@ -84,6 +85,7 @@ export const fetchGroup = async (args: fetchGroupProps) => {
   if (_list && _list.length > 0)                   options = [...options, `_list=${_list.reduce(reducer)}`]                                     // eslint-disable-line
   if (_elements && _elements.length > 0)           options = [...options, `_elements=${_elements.reduce(reducer)}`]                             // eslint-disable-line
   if (managingEntity && managingEntity.length > 0) options = [...options, `managing-entity=${managingEntity.reduce(reducer)}`]                  // eslint-disable-line
+  if (characteristic && characteristic.length > 0) options = [...options, `characteristic=${characteristic.reduce(reducer)}`]                   // eslint-disable-line
 
   const response = await apiFhir.get<FHIR_API_Response<IGroup>>(`/Group?${options.reduce(optionsReducer)}`)
 
@@ -102,7 +104,7 @@ export const deleteGroup = async (groupID: string) => {
 type fetchPatientProps = {
   _id?: string
   _list?: string[]
-  size?: number
+  _count?: number
   offset?: number
   _sort?: string
   sortDirection?: 'asc' | 'desc'
@@ -122,7 +124,7 @@ type fetchPatientProps = {
 export const fetchPatient = async (args: fetchPatientProps) => {
   const {
     _id,
-    size,
+    _count,
     offset,
     _sort,
     sortDirection,
@@ -146,7 +148,7 @@ export const fetchPatient = async (args: fetchPatientProps) => {
 
   let options: string[] = []
   if (_id)                                         options = [...options, `_id=${_id}`]                                                         // eslint-disable-line
-  if (size !== undefined)                          options = [...options, `size=${size}`]                                                       // eslint-disable-line
+  if (_count !== undefined)                        options = [...options, `_count=${_count}`]                                                   // eslint-disable-line
   if (offset)                                      options = [...options, `offset=${offset}`]                                                   // eslint-disable-line
   if (_sort)                                       options = [...options, `_sort=${_sortDirection}${_sort}`]                                    // eslint-disable-line
   if (gender)                                      options = [...options, `gender=${gender}`]                                                   // eslint-disable-line
@@ -178,20 +180,22 @@ type fetchEncounterProps = {
   _list?: string[]
   type?: string
   'type:not'?: string
-  size?: number
+  _count?: number
   offset?: number
   _sort?: string
   sortDirection?: 'asc' | 'desc'
   patient?: string
   status?: string[]
+  'service-provider'?: string
   facet?: ('class' | 'visit-year-month-gender-facet')[]
   _elements?: ('status' | 'serviceProvider' | 'identifier')[]
 }
 export const fetchEncounter = async (args: fetchEncounterProps) => {
-  const { _id, size, offset, _sort, sortDirection, patient, type } = args
+  const { _id, _count, offset, _sort, sortDirection, patient, type } = args
   const _sortDirection = sortDirection === 'desc' ? '-' : ''
   let { _list, _elements, status, facet } = args
   const typeNot = args['type:not']
+  const serviceProvider = args['service-provider']
 
   _list = _list ? _list.filter(uniq) : []
   status = status ? status.filter(uniq) : []
@@ -200,12 +204,13 @@ export const fetchEncounter = async (args: fetchEncounterProps) => {
 
   let options: string[] = []
   if (_id)                                         options = [...options, `_id=${_id}`]                                                         // eslint-disable-line
-  if (size !== undefined)                          options = [...options, `size=${size}`]                                                       // eslint-disable-line
+  if (_count !== undefined)                        options = [...options, `_count=${_count}`]                                                       // eslint-disable-line
   if (offset)                                      options = [...options, `offset=${offset}`]                                                   // eslint-disable-line
   if (_sort)                                       options = [...options, `_sort=${_sortDirection}${_sort},id`]                                 // eslint-disable-line
   if (patient)                                     options = [...options, `patient=${patient}`]                                                 // eslint-disable-line
   if (type)                                        options = [...options, `type=${type}`]                                                       // eslint-disable-line
   if (typeNot)                                     options = [...options, `type:not=${typeNot}`]                                                // eslint-disable-line
+  if (serviceProvider)                             options = [...options, `service-provider=${serviceProvider}`]                                 // eslint-disable-line
 
   if (_list && _list.length > 0)                   options = [...options, `_list=${_list.reduce(reducer)}`]                                     // eslint-disable-line
   if (status && status.length > 0)                 options = [...options, `status=${status.reduce(reducer)}`]                                   // eslint-disable-line
@@ -226,7 +231,7 @@ export const fetchEncounter = async (args: fetchEncounterProps) => {
 type fetchCompositionProps = {
   _id?: string
   _list?: string[]
-  size?: number
+  _count?: number
   offset?: number
   _sort?: string
   sortDirection?: 'asc' | 'desc'
@@ -244,7 +249,7 @@ type fetchCompositionProps = {
   _elements?: ('status' | 'type' | 'subject' | 'encounter' | 'date' | 'title')[]
 }
 export const fetchComposition = async (args: fetchCompositionProps) => {
-  const { _id, size, offset, _sort, sortDirection, type, _text, status, patient, encounter, minDate, maxDate } = args
+  const { _id, _count, offset, _sort, sortDirection, type, _text, status, patient, encounter, minDate, maxDate } = args
   const _sortDirection = sortDirection === 'desc' ? '-' : ''
   let { _list, facet, uniqueFacet, _elements } = args
   const encounterIdentifier = args['encounter.identifier']
@@ -258,7 +263,7 @@ export const fetchComposition = async (args: fetchCompositionProps) => {
   // By default, all the calls to `/Composition` will have `type:not=doc-impor` in parameter
   let options: string[] = ['type:not=doc-impor', 'empty=false']
   if (_id)                                         options = [...options, `_id=${_id}`]                                                         // eslint-disable-line
-  if (size !== undefined)                          options = [...options, `size=${size}`]                                                       // eslint-disable-line
+  if (_count !== undefined)                          options = [...options, `_count=${_count}`]                                                       // eslint-disable-line
   if (offset)                                      options = [...options, `offset=${offset}`]                                                   // eslint-disable-line
   if (_sort)                                       options = [...options, `_sort=${_sortDirection}${_sort},id`]                                 // eslint-disable-line
   if (type)                                        options = [...options, `type=${type}`]                                                       // eslint-disable-line
@@ -363,7 +368,7 @@ export const fetchPractitionerRole = async (args: fetchPractitionerRoleProps) =>
 
 type fetchProcedureProps = {
   _list?: string[]
-  size?: number
+  _count?: number
   offset?: number
   _sort?: string
   sortDirection?: 'asc' | 'desc'
@@ -377,7 +382,7 @@ type fetchProcedureProps = {
   'encounter.identifier'?: string
 }
 export const fetchProcedure = async (args: fetchProcedureProps) => {
-  const { size, offset, _sort, sortDirection, subject, patient, code, _text, status, minDate, maxDate } = args
+  const { _count, offset, _sort, sortDirection, subject, patient, code, _text, status, minDate, maxDate } = args
   const _sortDirection = sortDirection === 'desc' ? '-' : ''
   let { _list } = args
   const encounterIdentifier = args['encounter.identifier']
@@ -385,7 +390,7 @@ export const fetchProcedure = async (args: fetchProcedureProps) => {
   _list = _list ? _list.filter(uniq) : []
 
   let options: string[] = []
-  if (size !== undefined)                          options = [...options, `size=${size}`]                                                       // eslint-disable-line
+  if (_count !== undefined)                          options = [...options, `_count=${_count}`]                                                       // eslint-disable-line
   if (offset)                                      options = [...options, `offset=${offset}`]                                                   // eslint-disable-line
   if (_sort)                                       options = [...options, `_sort=${_sortDirection}${_sort},id`]                                 // eslint-disable-line
   if (subject)                                     options = [...options, `subject=${subject}`]                                                 // eslint-disable-line
@@ -410,7 +415,7 @@ export const fetchProcedure = async (args: fetchProcedureProps) => {
 
 type fetchClaimProps = {
   _list?: string[]
-  size?: number
+  _count?: number
   offset?: number
   _sort?: string
   sortDirection?: 'asc' | 'desc'
@@ -424,7 +429,7 @@ type fetchClaimProps = {
   'encounter.identifier'?: string
 }
 export const fetchClaim = async (args: fetchClaimProps) => {
-  const { size, offset, _sort, sortDirection, subject, patient, diagnosis, _text, status, minCreated, maxCreated } =
+  const { _count, offset, _sort, sortDirection, subject, patient, diagnosis, _text, status, minCreated, maxCreated } =
     args
   const _sortDirection = sortDirection === 'desc' ? '-' : ''
   let { _list } = args
@@ -433,7 +438,7 @@ export const fetchClaim = async (args: fetchClaimProps) => {
   _list = _list ? _list.filter(uniq) : []
 
   let options: string[] = []
-  if (size !== undefined)                          options = [...options, `size=${size}`]                                                       // eslint-disable-line
+  if (_count !== undefined)                          options = [...options, `_count=${_count}`]                                                       // eslint-disable-line
   if (offset)                                      options = [...options, `offset=${offset}`]                                                   // eslint-disable-line
   if (_sort)                                       options = [...options, `_sort=${_sortDirection}${_sort},id`]                                 // eslint-disable-line
   if (subject)                                     options = [...options, `subject=${subject}`]                                                 // eslint-disable-line
@@ -459,7 +464,7 @@ export const fetchClaim = async (args: fetchClaimProps) => {
 
 type fetchConditionProps = {
   _list?: string[]
-  size?: number
+  _count?: number
   offset?: number
   _sort?: string
   sortDirection?: 'asc' | 'desc'
@@ -474,7 +479,7 @@ type fetchConditionProps = {
   'encounter.identifier'?: string
 }
 export const fetchCondition = async (args: fetchConditionProps) => {
-  const { size, offset, _sort, sortDirection, subject, patient, code, _text, status } = args
+  const { _count, offset, _sort, sortDirection, subject, patient, code, _text, status } = args
   const _sortDirection = sortDirection === 'desc' ? '-' : ''
   let { _list, type } = args
   const encounterIdentifier = args['encounter.identifier']
@@ -485,7 +490,7 @@ export const fetchCondition = async (args: fetchConditionProps) => {
   type = type ? type.filter(uniq) : []
 
   let options: string[] = []
-  if (size !== undefined)                          options = [...options, `size=${size}`]                                                       // eslint-disable-line
+  if (_count !== undefined)                          options = [...options, `_count=${_count}`]                                                       // eslint-disable-line
   if (offset)                                      options = [...options, `offset=${offset}`]                                                   // eslint-disable-line
   if (_sort)                                       options = [...options, `_sort=${_sortDirection}${_sort},id`]                                 // eslint-disable-line
   if (subject)                                     options = [...options, `subject=${subject}`]                                                 // eslint-disable-line
@@ -507,7 +512,7 @@ export const fetchCondition = async (args: fetchConditionProps) => {
 
 type fetchObservationProps = {
   id?: string
-  size?: number
+  _count?: number
   offset?: number
   _sort?: string
   sortDirection?: 'asc' | 'desc'
@@ -522,7 +527,7 @@ type fetchObservationProps = {
   _list?: string[]
 }
 export const fetchObservation = async (args: fetchObservationProps) => {
-  const { id, size, offset, _sort, sortDirection, _text, encounter, loinc, anabio, patient, type, minDate, maxDate } =
+  const { id, _count, offset, _sort, sortDirection, _text, encounter, loinc, anabio, patient, type, minDate, maxDate } =
     args
   const _sortDirection = sortDirection === 'desc' ? '-' : ''
   let { _list } = args
@@ -532,7 +537,7 @@ export const fetchObservation = async (args: fetchObservationProps) => {
   // By default, all the calls to `/Observation` will have 'value-quantity-value=ge0,le0' in the parameters
   let options: string[] = ['value-quantity-value=ge0,le0']
   if (id)                                           options = [...options, `id=${id}`]                                                                 // eslint-disable-line
-  if (size !== undefined)                           options = [...options, `size=${size}`]                                                             // eslint-disable-line
+  if (_count !== undefined)                           options = [...options, `_count=${_count}`]                                                             // eslint-disable-line
   if (offset)                                       options = [...options, `offset=${offset}`]                                                         // eslint-disable-line
   if (_sort)                                        options = [...options, `_sort=${_sortDirection}${_sort.includes('code') ? _sort : `${_sort},id`}`] // eslint-disable-line
   if (_text)                                        options = [...options, `_text=${encodeURIComponent(_text)}`]                                       // eslint-disable-line
@@ -552,7 +557,7 @@ export const fetchObservation = async (args: fetchObservationProps) => {
 
 type fetchMedicationRequestProps = {
   id?: string
-  size?: number
+  _count?: number
   offset?: number
   _sort?: string
   sortDirection?: 'asc' | 'desc'
@@ -565,7 +570,7 @@ type fetchMedicationRequestProps = {
   _list?: string[]
 }
 export const fetchMedicationRequest = async (args: fetchMedicationRequestProps) => {
-  const { id, size, offset, _sort, sortDirection, _text, encounter, patient, type, minDate, maxDate } = args
+  const { id, _count, offset, _sort, sortDirection, _text, encounter, patient, type, minDate, maxDate } = args
   const _sortDirection = sortDirection === 'desc' ? '-' : ''
   let { _list } = args
 
@@ -573,7 +578,7 @@ export const fetchMedicationRequest = async (args: fetchMedicationRequestProps) 
 
   let options: string[] = []
   if (id)                                          options = [...options, `id=${id}`]                                                           // eslint-disable-line
-  if (size !== undefined)                          options = [...options, `size=${size}`]                                                       // eslint-disable-line
+  if (_count !== undefined)                          options = [...options, `_count=${_count}`]                                                       // eslint-disable-line
   if (offset)                                      options = [...options, `offset=${offset}`]                                                   // eslint-disable-line
   if (_sort)                                       options = [...options, `_sort=${_sortDirection}${_sort},id`]                                 // eslint-disable-line
   if (patient)                                     options = [...options, `patient=${patient}`]                                                 // eslint-disable-line
@@ -594,7 +599,7 @@ export const fetchMedicationRequest = async (args: fetchMedicationRequestProps) 
 
 type fetchMedicationAdministrationProps = {
   id?: string
-  size?: number
+  _count?: number
   offset?: number
   _sort?: string
   sortDirection?: 'asc' | 'desc'
@@ -607,7 +612,7 @@ type fetchMedicationAdministrationProps = {
   _list?: string[]
 }
 export const fetchMedicationAdministration = async (args: fetchMedicationAdministrationProps) => {
-  const { id, size, offset, _sort, sortDirection, _text, encounter, patient, route, minDate, maxDate } = args
+  const { id, _count, offset, _sort, sortDirection, _text, encounter, patient, route, minDate, maxDate } = args
   const _sortDirection = sortDirection === 'desc' ? '-' : ''
   let { _list } = args
 
@@ -615,7 +620,7 @@ export const fetchMedicationAdministration = async (args: fetchMedicationAdminis
 
   let options: string[] = []
   if (id)                                          options = [...options, `id=${id}`]                                                           // eslint-disable-line
-  if (size !== undefined)                          options = [...options, `size=${size}`]                                                       // eslint-disable-line
+  if (_count !== undefined)                          options = [...options, `_count=${_count}`]                                                       // eslint-disable-line
   if (offset)                                      options = [...options, `offset=${offset}`]                                                   // eslint-disable-line
   if (_sort)                                       options = [...options, `_sort=${_sortDirection}${_sort},id`]                                 // eslint-disable-line
   if (patient)                                     options = [...options, `patient=${patient}`]                                                 // eslint-disable-line

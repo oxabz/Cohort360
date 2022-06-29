@@ -300,13 +300,13 @@ const servicesPatients: IServicePatients = {
     const [myPatientsResp, myPatientsEncounters] = await Promise.all([
       fetchPatient({
         pivotFacet: ['age_gender', 'deceased_gender'],
-        size: 20,
+        _count: 20,
         _sort: 'given',
         _elements: ['gender', 'name', 'birthDate', 'deceased', 'identifier', 'extension']
       }),
       fetchEncounter({
         facet: ['class', 'visit-year-month-gender-facet'],
-        size: 0,
+        _count: 0,
         type: 'VISIT'
       })
     ])
@@ -377,7 +377,7 @@ const servicesPatients: IServicePatients = {
       case 'diagnostic':
         pmsiResp = await fetchCondition({
           offset: page ? (page - 1) * 20 : 0,
-          size: 20,
+          _count: 20,
           _list: groupId ? [groupId] : [],
           patient: patientId,
           _text: searchInput,
@@ -393,7 +393,7 @@ const servicesPatients: IServicePatients = {
       case 'ccam':
         pmsiResp = await fetchProcedure({
           offset: page ? (page - 1) * 20 : 0,
-          size: 20,
+          _count: 20,
           _list: groupId ? [groupId] : [],
           patient: patientId,
           _text: searchInput,
@@ -408,7 +408,7 @@ const servicesPatients: IServicePatients = {
       case 'ghm':
         pmsiResp = await fetchClaim({
           offset: page ? (page - 1) * 20 : 0,
-          size: 20,
+          _count: 20,
           _list: groupId ? [groupId] : [],
           patient: patientId,
           _text: searchInput,
@@ -439,7 +439,7 @@ const servicesPatients: IServicePatients = {
   fetchAllProcedures: async (patientId, groupId, size) => {
     const proceduresResp = await fetchProcedure({
       offset: 20,
-      size,
+      _count: size,
       _list: groupId ? [groupId] : [],
       patient: patientId,
       _sort: 'date',
@@ -453,7 +453,7 @@ const servicesPatients: IServicePatients = {
   fetchAllConditions: async (patientId, groupId, size) => {
     const diagnosticsResp = await fetchCondition({
       offset: 20,
-      size,
+      _count: size,
       _list: groupId ? [groupId] : [],
       patient: patientId,
       _sort: 'recorded-date',
@@ -484,7 +484,7 @@ const servicesPatients: IServicePatients = {
       case 'prescription':
         medicationResp = await fetchMedicationRequest({
           offset: page ? (page - 1) * 20 : 0,
-          size: 20,
+          _count: 20,
           _list: groupId ? [groupId] : [],
           encounter: nda,
           patient: patientId,
@@ -499,7 +499,7 @@ const servicesPatients: IServicePatients = {
       case 'administration':
         medicationResp = await fetchMedicationAdministration({
           offset: page ? (page - 1) * 20 : 0,
-          size: 20,
+          _count: 20,
           _list: groupId ? [groupId] : [],
           encounter: nda,
           patient: patientId,
@@ -543,7 +543,7 @@ const servicesPatients: IServicePatients = {
       _list: groupId ? [groupId] : [],
       _sort: sortBy,
       sortDirection: sortDirection === 'desc' ? 'desc' : 'asc',
-      size: 20,
+      _count: 20,
       offset: page ? (page - 1) * 20 : 0,
       _text: searchInput,
       encounter: nda,
@@ -580,7 +580,7 @@ const servicesPatients: IServicePatients = {
       _list: groupId ? [groupId] : [],
       _sort: sortBy,
       sortDirection: sortDirection === 'desc' ? 'desc' : 'asc',
-      size: documentLines,
+      _count: documentLines,
       offset: page ? (page - 1) * documentLines : 0,
       status: 'final',
       _elements: !searchInput ? ['status', 'type', 'encounter', 'date', 'title'] : [],
@@ -663,7 +663,7 @@ const servicesPatients: IServicePatients = {
 
     const patientResp = await fetchPatient({
       _list: nominativeGroupsIds,
-      size: 20,
+      _count: 20,
       offset: page ? (page - 1) * 20 : 0,
       _sort: sortBy,
       sortDirection: sortDirection === 'desc' ? 'desc' : 'asc',
