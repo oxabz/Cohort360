@@ -461,3 +461,43 @@ export const getGenderRepartitionSimpleData = (
   }
   return { vitalStatusData, genderData }
 }
+
+export const getAgeRepartitionMapCHUT = (extension?: IExtension[]): AgeRepartitionType => {
+  const ageRepartitionExtension = extension?.find(
+    (extension) => extension.url === 'http://svlbigdata4/hapi/fhir/StructureDefinition/17288780'
+  )
+  if (!extension || !ageRepartitionExtension) {
+    return []
+  }
+  const ageRepartition = ageRepartitionExtension?.valueString
+  if (!ageRepartition) {
+    return []
+  }
+  const ageRepartitionMap: { [name: string]: any } = JSON.parse(ageRepartition)
+  const result: AgeRepartitionType = []
+  Object.entries(ageRepartitionMap).forEach(([key, value]) => {
+    const k = parseInt(key)
+    result[k] = value
+  })
+  return result
+}
+
+export const getGenderRepartitionMapCHUT = (extension?: IExtension[]): GenderRepartitionType => {
+  const defaultValue = {
+    male: { alive: 0, deceased: 0 },
+    female: { alive: 0, deceased: 0 },
+    other: { alive: 0, deceased: 0 },
+    unknown: { alive: 0, deceased: 0 }
+  }
+  const genderRepartitionExtension = extension?.find(
+    (extension) => extension.url === 'http://svlbigdata/hapi/fhir/StructureDefinition/17288783'
+  )
+  if (!extension || !genderRepartitionExtension) {
+    return defaultValue
+  }
+  const genderRepartition = genderRepartitionExtension?.valueString
+  if (!genderRepartition) {
+    return defaultValue
+  }
+  return JSON.parse(genderRepartition)
+}

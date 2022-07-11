@@ -19,7 +19,9 @@ import {
   getGenderRepartitionMapAphp,
   getEncounterRepartitionMapAphp,
   getAgeRepartitionMapAphp,
-  getVisitRepartitionMapAphp
+  getVisitRepartitionMapAphp,
+  getAgeRepartitionMapCHUT,
+  getGenderRepartitionMapCHUT
 } from 'utils/graphUtils'
 import { getApiResponseResources } from 'utils/apiHelpers'
 
@@ -308,9 +310,8 @@ const servicesCohorts: IServiceCohorts = {
     const patientsResp = await fetchPatient({
       _count: 20,
       offset: page ? (page - 1) * 20 : 0,
-      _sort: sortBy,
+      _sort: !['given', 'familly', 'name'].includes(sortBy) ? sortBy : undefined, // Hack due to a hapi fhir bug
       sortDirection: sortDirection === 'desc' ? 'desc' : 'asc',
-      pivotFacet: includeFacets ? ['age_gender', 'deceased_gender'] : [],
       _list: groupId ? [groupId] : [],
       gender:
         gender === PatientGenderKind._unknown ? '' : gender === PatientGenderKind._other ? `other,unknown` : gender,
@@ -321,26 +322,29 @@ const servicesCohorts: IServiceCohorts = {
       deceased: vitalStatus !== VitalStatus.all ? (vitalStatus === VitalStatus.deceased ? true : false) : undefined
     })
 
-    const totalPatients = patientsResp.data.resourceType === 'Bundle' ? patientsResp.data.total : 0
-
     const originalPatients = getApiResponseResources(patientsResp)
 
-    const agePyramidData =
-      patientsResp.data.resourceType === 'Bundle'
-        ? getAgeRepartitionMapAphp(
-            patientsResp.data.meta?.extension?.find((facet: any) => facet.url === 'facet-age-month')?.extension
-          )
-        : undefined
+    if (!groupId || !includeFacets) {
+      const totalPatients = patientsResp.data.resourceType === 'Bundle' ? patientsResp.data.total : 0
+      return {
+        totalPatients: totalPatients ?? 0,
+        originalPatients
+      }
+    }
 
-    const genderRepartitionMap =
-      patientsResp.data.resourceType === 'Bundle'
-        ? getGenderRepartitionMapAphp(
-            patientsResp.data.meta?.extension?.find((facet: any) => facet.url === 'facet-deceased')?.extension
-          )
-        : undefined
+    // REPLACE THIS WITH THE RIGHT WAY TO GET THE FACETS ONCE WE HAVE A FIXED API
+    const groupResp = await fetchGroup({ _id: groupId })
+    const groupData = getApiResponseResources(groupResp)
+    const group = groupData ? groupData[0] : undefined
+
+    const totalPatients = patientsResp.data.resourceType === 'Bundle' ? patientsResp.data.total : 0 ?? group?.quantity
+
+    const agePyramidData = getAgeRepartitionMapCHUT(group?.extension ?? [])
+
+    const genderRepartitionMap = getGenderRepartitionMapCHUT(group?.extension ?? [])
 
     return {
-      totalPatients: totalPatients ?? 0,
+      totalPatients: totalPatients ?? 1,
       originalPatients,
       genderRepartitionMap,
       agePyramidData

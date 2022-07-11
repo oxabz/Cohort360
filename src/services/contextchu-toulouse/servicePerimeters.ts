@@ -1,8 +1,8 @@
 import { CohortData, ScopeTreeRow } from 'types'
 import { IGroup, IOrganization, IExtension } from '@ahryman40k/ts-fhir-types/lib/R4'
 import {
-  getGenderRepartitionMapAphp,
-  getAgeRepartitionMapAphp,
+  getGenderRepartitionMapCHUT,
+  getAgeRepartitionMapCHUT,
   getEncounterRepartitionMapAphp,
   getVisitRepartitionMapAphp
 } from 'utils/graphUtils'
@@ -101,7 +101,7 @@ const servicesPerimeters: IServicePerimeters = {
 
     const [patientsResp, encountersResp] = await Promise.all([
       fetchPatient({
-        _id: patientsId?.join(','),
+        _list: [perimetersId],
         _count: 20,
         _elements: ['gender', 'name', 'birthDate', 'deceased', 'identifier', 'extension']
       }),
@@ -118,27 +118,13 @@ const servicesPerimeters: IServicePerimeters = {
 
     const originalPatients = getApiResponseResources(patientsResp)
 
-    const ageFacet = patientsResp.data.meta?.extension?.filter((facet: any) => facet.url === 'facet-age-month')
-    const deceasedFacet = patientsResp.data.meta?.extension?.filter((facet: any) => facet.url === 'facet-deceased')
     const visitFacet = encountersResp.data.meta?.extension?.filter(
       (facet: any) => facet.url === 'facet-visit-year-month-gender-facet'
     )
     const classFacet = encountersResp.data.meta?.extension?.filter((facet: any) => facet.url === 'facet-class-simple')
 
-    const agePyramidData =
-      patientsResp?.data?.resourceType === 'Bundle'
-        ? getAgeRepartitionMapAphp(ageFacet && ageFacet[0] && ageFacet[0].extension)
-        : undefined
-    const genderRepartitionMap = {
-      female: { deceased: 1, alive: 2 },
-      male: { deceased: 3, alive: 4 },
-      unknown: { deceased: 5, alive: 6 },
-      other: { deceased: 7, alive: 8 },
-    }
-    
-      // patientsResp?.data?.resourceType === 'Bundle'
-      //   ? getGenderRepartitionMapAphp(deceasedFacet && deceasedFacet[0] && deceasedFacet[0].extension)
-      //   : undefined
+    const agePyramidData = getAgeRepartitionMapCHUT(perimetersData[0].extension)
+    const genderRepartitionMap = getGenderRepartitionMapCHUT(perimetersData[0].extension)
     const monthlyVisitData =
       encountersResp?.data?.resourceType === 'Bundle'
         ? getVisitRepartitionMapAphp(visitFacet && visitFacet[0] && visitFacet[0].extension)

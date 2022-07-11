@@ -150,7 +150,8 @@ export const fetchPatient = async (args: fetchPatientProps) => {
   if (_id)                                         options = [...options, `_id=${_id}`]                                                         // eslint-disable-line
   if (_count !== undefined)                        options = [...options, `_count=${_count}`]                                                   // eslint-disable-line
   if (offset)                                      options = [...options, `offset=${offset}`]                                                   // eslint-disable-line
-  if (_sort)                                       options = [...options, `_sort=${_sortDirection}${_sort}`]                                    // eslint-disable-line
+  if (_sort &&                                                                                                                                  // eslint-disable-line
+    !["given", "family", "name"].includes(_sort))  options = [...options, `_sort=${_sortDirection}${_sort}`]                                    // eslint-disable-line
   if (gender)                                      options = [...options, `gender=${gender}`]                                                   // eslint-disable-line
   if (_text)                                       options = [...options, `${searchBy ? searchBy : '_text'}=${encodeURIComponent(_text)}`]      // eslint-disable-line
   if (family)                                      options = [...options, `family=${family}`]                                                   // eslint-disable-line
@@ -162,7 +163,7 @@ export const fetchPatient = async (args: fetchPatientProps) => {
   if (_summary)                                    options = [...options, `_summary=${_summary}`]                                               // eslint-disable-line
 
   if (_list && _list.length > 0)                   options = [...options, `_list=${_list.reduce(reducer)}`]                                     // eslint-disable-line
-  if (pivotFacet && pivotFacet.length > 0)         options = [...options, `pivotFacet=${pivotFacet.reduce(reducer)}`]                           // eslint-disable-line
+  //if (pivotFacet && pivotFacet.length > 0)         options = [...options, `pivotFacet=${pivotFacet.reduce(reducer)}`]                           // eslint-disable-line
   if (_elements && _elements.length > 0)           options = [...options, `_elements=${_elements.reduce(reducer)}`]                             // eslint-disable-line
 
   const response = await apiFhir.get<FHIR_API_Response<IPatient>>(`/Patient?${options.reduce(optionsReducer)}`)
@@ -215,8 +216,7 @@ export const fetchEncounter = async (args: fetchEncounterProps) => {
   if (_list && _list.length > 0)                   options = [...options, `_list=${_list.reduce(reducer)}`]                                     // eslint-disable-line
   if (status && status.length > 0)                 options = [...options, `status=${status.reduce(reducer)}`]                                   // eslint-disable-line
   if (_elements && _elements.length > 0)           options = [...options, `_elements=${_elements.reduce(reducer)}`]                             // eslint-disable-line
-  if (facet && facet.length > 0)                   options = [...options, `facet=${facet.reduce(reducer)}`]                                     // eslint-disable-line
-
+  //if (facet && facet.length > 0)                   options = [...options, `facet=${facet.reduce(reducer)}`]                                     // eslint-disable-line
 
   const response = await apiFhir.get<FHIR_API_Response<IEncounter>>(`/Encounter?${options.reduce(optionsReducer)}`)
 
