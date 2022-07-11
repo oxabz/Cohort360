@@ -4,7 +4,8 @@ import {
   getGenderRepartitionMapCHUT,
   getAgeRepartitionMapCHUT,
   getEncounterRepartitionMapAphp,
-  getVisitRepartitionMapAphp
+  getVisitRepartitionMapAphp,
+  getVisitRepartitionMapCHUT
 } from 'utils/graphUtils'
 import { getApiResponseResources } from 'utils/apiHelpers'
 
@@ -125,10 +126,7 @@ const servicesPerimeters: IServicePerimeters = {
 
     const agePyramidData = getAgeRepartitionMapCHUT(perimetersData[0].extension)
     const genderRepartitionMap = getGenderRepartitionMapCHUT(perimetersData[0].extension)
-    const monthlyVisitData =
-      encountersResp?.data?.resourceType === 'Bundle'
-        ? getVisitRepartitionMapAphp(visitFacet && visitFacet[0] && visitFacet[0].extension)
-        : undefined
+    const monthlyVisitData = getVisitRepartitionMapCHUT(perimetersData[0].extension)
     const visitTypeRepartitionData =
       encountersResp?.data?.resourceType === 'Bundle'
         ? getEncounterRepartitionMapAphp(classFacet && classFacet[0] && classFacet[0].extension)

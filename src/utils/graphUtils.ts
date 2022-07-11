@@ -490,7 +490,36 @@ export const getGenderRepartitionMapCHUT = (extension?: IExtension[]): GenderRep
     unknown: { alive: 0, deceased: 0 }
   }
   const genderRepartitionExtension = extension?.find(
-    (extension) => extension.url === 'http://svlbigdata/hapi/fhir/StructureDefinition/17288783'
+    (extension) => extension.url === 'http://svlbigdata4/hapi/fhir/StructureDefinition/17288783'
+  )
+  if (!extension || !genderRepartitionExtension) {
+    return defaultValue
+  }
+  const genderRepartition = genderRepartitionExtension?.valueString
+  if (!genderRepartition) {
+    return defaultValue
+  }
+  return JSON.parse(genderRepartition)
+}
+
+export const getVisitRepartitionMapCHUT = (extension?: IExtension[]): VisiteRepartitionType => {
+  const defaultValue = {
+    Janvier: { male: 0, maleCount: 0, female: 0, femaleCount: 0, other: 0, otherCount: 0 },
+    Février: { male: 0, maleCount: 0, female: 0, femaleCount: 0, other: 0, otherCount: 0 },
+    Mars: { male: 0, maleCount: 0, female: 0, femaleCount: 0, other: 0, otherCount: 0 },
+    Avril: { male: 0, maleCount: 0, female: 0, femaleCount: 0, other: 0, otherCount: 0 },
+    Mai: { male: 0, maleCount: 0, female: 0, femaleCount: 0, other: 0, otherCount: 0 },
+    Juin: { male: 0, maleCount: 0, female: 0, femaleCount: 0, other: 0, otherCount: 0 },
+    Juillet: { male: 0, maleCount: 0, female: 0, femaleCount: 0, other: 0, otherCount: 0 },
+    Août: { male: 0, maleCount: 0, female: 0, femaleCount: 0, other: 0, otherCount: 0 },
+    Septembre: { male: 0, maleCount: 0, female: 0, femaleCount: 0, other: 0, otherCount: 0 },
+    Octobre: { male: 0, maleCount: 0, female: 0, femaleCount: 0, other: 0, otherCount: 0 },
+    Novembre: { male: 0, maleCount: 0, female: 0, femaleCount: 0, other: 0, otherCount: 0 },
+    Decembre: { male: 0, maleCount: 0, female: 0, femaleCount: 0, other: 0, otherCount: 0 }
+  }
+
+  const genderRepartitionExtension = extension?.find(
+    (extension) => extension.url === 'http://svlbigdata4/hapi/fhir/StructureDefinition/17288784'
   )
   if (!extension || !genderRepartitionExtension) {
     return defaultValue
