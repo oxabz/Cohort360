@@ -67,7 +67,7 @@ type fetchGroupProps = {
   provider?: string // Provider ID
   'managing-entity'?: string[] // ID List of organization
   characteristic?: string[] // ID List of Characteristic
-  _elements?: ('name' | 'managingEntity')[]
+  _elements?: ('id' | 'name' | 'managingEntity' | 'member' | 'quantity' | 'characteristic' | 'extension')[]
 }
 export const fetchGroup = async (args: fetchGroupProps) => {
   const { _id, provider, characteristic } = args
@@ -120,6 +120,7 @@ type fetchPatientProps = {
   _summary?: 'true' | 'false' | 'count'
   pivotFacet?: ('age_gender' | 'deceased_gender')[]
   _elements?: ('id' | 'gender' | 'name' | 'birthDate' | 'deceased' | 'identifier' | 'extension')[]
+  _total?: 'accurate' | 'none'
 }
 export const fetchPatient = async (args: fetchPatientProps) => {
   const {
@@ -149,7 +150,7 @@ export const fetchPatient = async (args: fetchPatientProps) => {
   let options: string[] = []
   if (_id)                                         options = [...options, `_id=${_id}`]                                                         // eslint-disable-line
   if (_count !== undefined)                        options = [...options, `_count=${_count}`]                                                   // eslint-disable-line
-  if (offset)                                      options = [...options, `offset=${offset}`]                                                   // eslint-disable-line
+  if (offset)                                      options = [...options, `_offset=${offset}`]                                                   // eslint-disable-line
   if (_sort &&                                                                                                                                  // eslint-disable-line
     !["given", "family", "name"].includes(_sort))  options = [...options, `_sort=${_sortDirection}${_sort}`]                                    // eslint-disable-line
   if (gender)                                      options = [...options, `gender=${gender}`]                                                   // eslint-disable-line

@@ -319,13 +319,15 @@ const servicesCohorts: IServiceCohorts = {
       _text: _searchInput,
       minBirthdate: birthdates[0],
       maxBirthdate: birthdates[1],
-      deceased: vitalStatus !== VitalStatus.all ? (vitalStatus === VitalStatus.deceased ? true : false) : undefined
+      deceased: vitalStatus !== VitalStatus.all ? (vitalStatus === VitalStatus.deceased ? true : false) : undefined,
+      _total: 'accurate'
     })
 
     const originalPatients = getApiResponseResources(patientsResp)
 
     if (!groupId || !includeFacets) {
       const totalPatients = patientsResp.data.resourceType === 'Bundle' ? patientsResp.data.total : 0
+
       return {
         totalPatients: totalPatients ?? 0,
         originalPatients
@@ -333,18 +335,18 @@ const servicesCohorts: IServiceCohorts = {
     }
 
     // REPLACE THIS WITH THE RIGHT WAY TO GET THE FACETS ONCE WE HAVE A FIXED API
-    const groupResp = await fetchGroup({ _id: groupId })
+    const groupResp = await fetchGroup({ _id: groupId /*, _elements: ['id', 'quantity', 'extension']*/ })
     const groupData = getApiResponseResources(groupResp)
     const group = groupData ? groupData[0] : undefined
 
-    const totalPatients = patientsResp.data.resourceType === 'Bundle' ? patientsResp.data.total : 0 ?? group?.quantity
+    const totalPatients = group?.quantity
 
     const agePyramidData = getAgeRepartitionMapCHUT(group?.extension ?? [])
 
     const genderRepartitionMap = getGenderRepartitionMapCHUT(group?.extension ?? [])
 
     return {
-      totalPatients: totalPatients ?? 1,
+      totalPatients: totalPatients ?? 0,
       originalPatients,
       genderRepartitionMap,
       agePyramidData

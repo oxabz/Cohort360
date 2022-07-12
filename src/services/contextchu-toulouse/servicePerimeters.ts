@@ -85,59 +85,37 @@ export interface IServicePerimeters {
 
 const servicesPerimeters: IServicePerimeters = {
   fetchPerimetersInfos: async (perimetersId) => {
-    const perimetersResp = await fetchGroup({
-      _id: perimetersId
-    })
-    const perimetersData = getApiResponseResources(perimetersResp) ?? []
-
-    const patientsId = perimetersData
-      ?.map((perimeter) =>
-        perimeter.member
-          ?.map((member) => member.entity.reference)
-          .filter((x): x is string => x !== undefined)
-          .map((member) => member.split('/')[1])
-      )
-      .flat()
-      .filter((x): x is string => x !== undefined)
-
-    const [patientsResp, encountersResp] = await Promise.all([
+    const [patientsResp, perimetersResp] = await Promise.all([
       fetchPatient({
         _list: [perimetersId],
         _count: 20,
-        _elements: ['gender', 'name', 'birthDate', 'deceased', 'identifier', 'extension']
+        _elements: ['gender', 'name', 'birthDate', 'deceased', 'identifier', 'extension'],
+        _total: 'none'
       }),
-      fetchEncounter({
-        'service-provider': `Organization/${perimetersId}`,
-        _count: 0,
-        type: 'VISIT'
+      fetchGroup({
+        _id: perimetersId,
+        _elements: ['id', 'name', 'extension', 'quantity', 'managingEntity']
       })
     ])
 
+    const perimetersData = getApiResponseResources(perimetersResp) ?? []
+
     const cohort = await servicesPerimeters.fetchPerimetersRights(perimetersData)
 
-    const totalPatients = perimetersData?.map((p) => p.member?.length ?? 0).reduce((a, b) => a + b)
+    const totalPatients = perimetersData?.map((p) => p?.quantity ?? 0).reduce((a, b) => a + b)
 
     const originalPatients = getApiResponseResources(patientsResp)
-
-    const visitFacet = encountersResp.data.meta?.extension?.filter(
-      (facet: any) => facet.url === 'facet-visit-year-month-gender-facet'
-    )
-    const classFacet = encountersResp.data.meta?.extension?.filter((facet: any) => facet.url === 'facet-class-simple')
 
     const agePyramidData = getAgeRepartitionMapCHUT(perimetersData[0].extension)
     const genderRepartitionMap = getGenderRepartitionMapCHUT(perimetersData[0].extension)
     const monthlyVisitData = getVisitRepartitionMapCHUT(perimetersData[0].extension)
-    const visitTypeRepartitionData =
-      encountersResp?.data?.resourceType === 'Bundle'
-        ? getEncounterRepartitionMapAphp(classFacet && classFacet[0] && classFacet[0].extension)
-        : undefined
 
     return {
       cohort,
       totalPatients,
       originalPatients,
       genderRepartitionMap,
-      visitTypeRepartitionData,
+      visitTypeRepartitionData: [],
       agePyramidData,
       monthlyVisitData
     }
@@ -385,22 +363,41 @@ const servicesPerimeters: IServicePerimeters = {
   fetchPerimetersRights: async (perimeters) => {
     const caresiteIds = perimeters
       .map((perimeter) =>
-        perimeter.managingEntity?.display?.search('Organization/') !== -1
-          ? perimeter.managingEntity?.display?.replace('Organization/', '')
+        perimeter.managingEntity?.reference?.search('Organization/') !== -1
+          ? perimeter.managingEntity?.reference?.replace('Organization/', '')
           : ''
       )
       .filter((item: any, index: number, array: any[]) => item && array.indexOf(item) === index)
-      .join(',')
 
-    const rightResponse = await apiBackend.get(`accesses/my-rights/?care-site-ids=${caresiteIds}`)
+    const idCorresp: { [name: string]: number } = {}
+
+    await Promise.all(
+      caresiteIds
+        .map((id) => apiBackend.get(`care-sites/?source_value=${id}`))
+        .map((r) =>
+          r.then((resp) => {
+            const res = (resp?.data as any).results[0]
+            idCorresp[res.source_value] = res.id
+          })
+        )
+    )
+
+    const rightResponse = await apiBackend.get(
+      `accesses/my-rights/?care-site-ids=${Object.values(idCorresp)
+        .map((id: number) => `${id}`)
+        .join(',')}`
+    )
     const rightsData = (rightResponse.data as any[]) ?? []
 
     return perimeters.map((perimeter) => {
       const caresiteId =
-        perimeter.managingEntity?.display?.search('Organization/') !== -1
-          ? perimeter.managingEntity?.display?.replace('Organization/', '')
+        perimeter.managingEntity?.reference?.search('Organization/') !== -1
+          ? perimeter.managingEntity?.reference?.replace('Organization/', '')
           : ''
-      const foundRight = rightsData.find((rightData) => rightData.care_site_id === +(caresiteId ?? '0'))
+
+      const foundRight = rightsData.find(
+        (rightData) => rightData.care_site_id === +((caresiteId ? idCorresp[caresiteId] : '0') ?? '0')
+      )
 
       return {
         ...perimeter,
@@ -456,7 +453,8 @@ const getAccessName = (extension?: IExtension[]) => {
 const addCohortID = async (organization: IOrganization) => {
   const perimetersResp = await fetchGroup({
     characteristic: ['perimeter_holder'],
-    'managing-entity': [`Organization/${organization.id}`]
+    'managing-entity': [`Organization/${organization.id}`],
+    _elements: ['id']
   })
   const perimetersData = getApiResponseResources(perimetersResp) ?? []
   const perimterGroupID = perimetersData.map((perimeter) => perimeter.id).filter((x): x is string => x !== undefined)[0]
