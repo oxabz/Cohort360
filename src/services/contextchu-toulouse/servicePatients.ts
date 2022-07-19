@@ -36,7 +36,8 @@ import {
   fetchComposition,
   fetchMedicationRequest,
   fetchMedicationAdministration,
-  fetchObservation
+  fetchObservation,
+  fetchRevIncCondition
 } from './callApi'
 
 import servicesPerimeters from './servicePerimeters'
@@ -375,20 +376,36 @@ const servicesPatients: IServicePatients = {
 
     switch (selectedTab) {
       case 'diagnostic':
-        pmsiResp = await fetchCondition({
-          offset: page ? (page - 1) * 20 : 0,
-          _count: 20,
-          _list: groupId ? [groupId] : [],
-          patient: patientId,
-          _text: searchInput,
-          _sort: sortBy === 'code' ? 'code' : 'recorded-date',
-          sortDirection: sortDirection === 'desc' ? 'desc' : 'asc',
-          'encounter.identifier': nda,
-          code: code,
-          type: diagnosticTypes,
-          'min-recorded-date': startDate ?? '',
-          'max-recorded-date': endDate ?? ''
-        })
+        pmsiResp =
+          sortBy === 'code'
+            ? await fetchCondition({
+                offset: page ? (page - 1) * 20 : 0,
+                _count: 20,
+                _list: groupId ? [groupId] : [],
+                patient: patientId,
+                _text: searchInput,
+                _sort: sortBy === 'code' ? 'code' : 'recorded-date',
+                sortDirection: sortDirection === 'desc' ? 'desc' : 'asc',
+                'encounter.identifier': nda,
+                code: code,
+                type: diagnosticTypes,
+                'min-recorded-date': startDate ?? '',
+                'max-recorded-date': endDate ?? ''
+              })
+            : await fetchRevIncCondition({
+                offset: page ? (page - 1) * 20 : 0,
+                _count: 20,
+                _list: groupId ? [groupId] : [],
+                patient: patientId,
+                _text: searchInput,
+                _sort: 'recorded-date',
+                sortDirection: sortDirection === 'desc' ? 'desc' : 'asc',
+                'encounter.identifier': nda,
+                code: code,
+                type: diagnosticTypes,
+                'min-recorded-date': startDate ?? '',
+                'max-recorded-date': endDate ?? ''
+              })
         break
       case 'ccam':
         pmsiResp = await fetchProcedure({
@@ -609,16 +626,15 @@ const servicesPatients: IServicePatients = {
       fetchPatient({ _id: patientId, _list: groupId ? [groupId] : [] }),
       fetchEncounter({
         patient: patientId,
-        type: 'VISIT',
         status: ['arrived', 'triaged', 'in-progress', 'onleave', 'finished', 'unknown'],
-        _sort: 'start-date',
+        _sort: 'date',
         sortDirection: 'desc',
         _list: groupId ? [groupId] : []
       }),
       fetchEncounter({
         patient: patientId,
         'type:not': 'VISIT',
-        _sort: 'start-date',
+        _sort: 'date',
         sortDirection: 'desc',
         _list: groupId ? [groupId] : []
       })

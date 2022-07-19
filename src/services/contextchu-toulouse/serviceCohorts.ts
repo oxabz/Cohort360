@@ -323,7 +323,7 @@ const servicesCohorts: IServiceCohorts = {
       _total: 'accurate'
     })
 
-    const originalPatients = getApiResponseResources(patientsResp)
+    const originalPatients = getApiResponseResources(patientsResp)?.map(unifyIPP)
 
     if (!groupId || !includeFacets) {
       const totalPatients = patientsResp.data.resourceType === 'Bundle' ? patientsResp.data.total : 0
@@ -380,15 +380,13 @@ const servicesCohorts: IServiceCohorts = {
         'encounter.identifier': nda,
         'patient.identifier': ipp,
         minDate: startDate ?? '',
-        maxDate: endDate ?? '',
-        uniqueFacet: ['patient']
+        maxDate: endDate ?? ''
       }),
       !!searchInput || selectedDocTypes.length > 0 || !!nda || !!ipp || !!startDate || !!endDate
         ? fetchComposition({
             status: 'final',
             _list: groupId ? [groupId] : [],
-            _count: 0,
-            uniqueFacet: ['patient']
+            _count: 0
           })
         : null
     ])
@@ -414,14 +412,14 @@ const servicesCohorts: IServiceCohorts = {
           ).valueDecimal
         : totalPatientDocs
 
-    const documentsList = await getDocumentInfos(deidentifiedBoolean, getApiResponseResources(docsList), groupId)
+    const _documentsList = await getDocumentInfos(deidentifiedBoolean, getApiResponseResources(docsList), groupId)
 
     return {
-      totalDocs: totalDocs ?? 0,
-      totalAllDocs: totalAllDocs ?? 0,
+      totalDocs: 0,
+      totalAllDocs: 0,
       totalPatientDocs: totalPatientDocs ?? 0,
       totalAllPatientDocs: totalAllPatientDocs ?? 0,
-      documentsList
+      documentsList: []
     }
   },
 
@@ -679,11 +677,11 @@ const getDocumentInfos: (
   const cohortDocuments = documents as CohortComposition[]
 
   const listePatientsIds = cohortDocuments
-    .map((e) => e.subject?.display?.substring(8))
+    .map((e) => e.subject?.reference?.substring(8))
     .filter((item, index, array) => array.indexOf(item) === index)
     .join()
   const listeEncounterIds = cohortDocuments
-    .map((e) => e.encounter?.display?.substring(10))
+    .map((e) => e.encounter?.reference?.substring(10))
     .filter((item, index, array) => array.indexOf(item) === index)
     .join()
 
@@ -696,7 +694,7 @@ const getDocumentInfos: (
     fetchEncounter({
       _id: listeEncounterIds,
       _list: groupId ? [groupId] : [],
-      type: 'VISIT',
+      //type: 'VISIT',
       _elements: ['status', 'serviceProvider', 'identifier']
     })
   ])
@@ -714,13 +712,13 @@ const getDocumentInfos: (
 
   for (const document of cohortDocuments) {
     for (const patient of listePatients) {
-      if (document.subject?.display?.substring(8) === patient.id) {
+      if (document.subject?.reference?.substring(8) === patient.id) {
         document.idPatient = patient.id
 
         document.IPP = patient.id ?? 'Inconnu'
         if (patient.identifier) {
           const ipp = patient.identifier.find((identifier: IIdentifier) => {
-            return identifier.type?.coding?.[0].code === 'IPP'
+            return identifier.type?.text === 'IPP'
           })
           document.IPP = ipp?.value ?? 'Inconnu'
         }
@@ -728,7 +726,7 @@ const getDocumentInfos: (
     }
 
     for (const encounter of listeEncounters) {
-      if (document.encounter?.display?.substring(10) === encounter.id) {
+      if (document.encounter?.reference?.substring(10) === encounter.id) {
         document.encounterStatus = encounter.status
 
         if (encounter.serviceProvider) {
@@ -749,4 +747,23 @@ const getDocumentInfos: (
   }
 
   return cohortDocuments
+}
+
+const unifyIPP = (patient: IPatient): IPatient => {
+  if (patient.identifier === undefined) {
+    return patient
+  }
+  const ipp = patient.identifier.find((identifier: IIdentifier) => {
+    return ['IPP', 'Identifiant permanent du patient'].includes(identifier.type?.text ?? '')
+  })
+
+  if (ipp?.type !== undefined) {
+    ipp.type.coding = [
+      {
+        code: 'IPP'
+      },
+      ...(ipp.type.coding ?? [])
+    ]
+  }
+  return patient
 }
