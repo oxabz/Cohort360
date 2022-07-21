@@ -18,7 +18,6 @@ import {
   IObservation
 } from '@ahryman40k/ts-fhir-types/lib/R4'
 import { AxiosResponse } from 'axios'
-import { log } from 'console'
 
 const reducer = (accumulator: any, currentValue: any) =>
   accumulator ? `${accumulator},${currentValue}` : currentValue ? currentValue : accumulator
@@ -141,10 +140,9 @@ export const fetchPatient = async (args: fetchPatientProps) => {
     _summary
   } = args
   const _sortDirection = sortDirection === 'desc' ? '-' : ''
-  let { _list, pivotFacet, _elements } = args
+  let { _list, _elements } = args
 
   _list = _list ? _list.filter(uniq) : []
-  pivotFacet = pivotFacet ? pivotFacet.filter(uniq) : []
   _elements = _elements ? _elements.filter(uniq) : []
 
   let options: string[] = []
@@ -195,14 +193,13 @@ type fetchEncounterProps = {
 export const fetchEncounter = async (args: fetchEncounterProps) => {
   const { _id, _count, offset, _sort, sortDirection, patient, type } = args
   const _sortDirection = sortDirection === 'desc' ? '-' : ''
-  let { _list, _elements, status, facet } = args
+  let { _list, _elements, status } = args
   const typeNot = args['type:not']
   const serviceProvider = args['service-provider']
 
   _list = _list ? _list.filter(uniq) : []
   status = status ? status.filter(uniq) : []
   _elements = _elements ? _elements.filter(uniq) : []
-  facet = facet ? facet.filter(uniq) : []
 
   let options: string[] = []
   if (_id)                                         options = [...options, `_id=${_id}`]                                                         // eslint-disable-line
@@ -266,7 +263,7 @@ export const fetchComposition = async (args: fetchCompositionProps) => {
   if (_id)                                         options = [...options, `_id=${_id}`]                                                         // eslint-disable-line
   if (_count !== undefined)                          options = [...options, `_count=${_count}`]                                                       // eslint-disable-line
   if (offset)                                      options = [...options, `offset=${offset}`]                                                   // eslint-disable-line
-  //if (_sort)                                       options = [...options, `_sort=${_sortDirection}${_sort},id`]                                 // eslint-disable-line
+  if (_sort)                                       options = [...options, `_sort=${_sortDirection}${_sort}`]                                 // eslint-disable-line
   if (type)                                        options = [...options, `type=${type}`]                                                       // eslint-disable-line
   if (_text)                                       options = [...options, `_text=${encodeURIComponent(_text)}`]                                 // eslint-disable-line
   if (status)                                      options = [...options, `status=${status}`]                                                   // eslint-disable-line
@@ -491,9 +488,9 @@ export const fetchCondition = async (args: fetchConditionProps) => {
   type = type ? type.filter(uniq) : []
 
   let options: string[] = []
-  if (_count !== undefined)                          options = [...options, `_count=${_count}`]                                                       // eslint-disable-line
+  if (_count !== undefined)                        options = [...options, `_count=${_count}`]                                                   // eslint-disable-line
   if (offset)                                      options = [...options, `offset=${offset}`]                                                   // eslint-disable-line
-  if (_sort)                                       options = [...options, `_sort=${_sortDirection}${_sort}`]                                 // eslint-disable-line
+  if (_sort)                                       options = [...options, `_sort=${_sortDirection}${_sort}`]                                    // eslint-disable-line
   if (subject)                                     options = [...options, `subject=${subject}`]                                                 // eslint-disable-line
   if (patient)                                     options = [...options, `patient=${patient}`]                                                 // eslint-disable-line
   if (code)                                        options = [...options, `code=${code}`]                                                       // eslint-disable-line
