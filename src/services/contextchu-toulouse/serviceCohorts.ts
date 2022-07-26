@@ -1,5 +1,4 @@
 import {
-  CohortComposition,
   CohortData,
   SearchByTypes,
   VitalStatus,
@@ -25,14 +24,7 @@ import {
 } from 'utils/graphUtils'
 import { getApiResponseResources } from 'utils/apiHelpers'
 
-import {
-  fetchGroup,
-  fetchPatient,
-  fetchEncounter,
-  fetchComposition,
-  fetchCompositionContent,
-  fetchBinary
-} from './callApi'
+import { fetchGroup, fetchPatient, fetchEncounter, fetchCompositionContent, fetchBinary } from './callApi'
 
 import { ODD_EXPORT } from '../../constants'
 
@@ -310,7 +302,7 @@ const servicesCohorts: IServiceCohorts = {
     const patientsResp = await fetchPatient({
       _count: 20,
       offset: page ? (page - 1) * 20 : 0,
-      _sort: !['given', 'familly', 'name'].includes(sortBy) ? sortBy : undefined, // Hack due to a hapi fhir bug
+      _sort: !['given', 'familly', 'name'].includes(sortBy) ? sortBy : undefined, // HACK : Since the _list parameter doesnt work the text based sort times out the request
       sortDirection: sortDirection === 'desc' ? 'desc' : 'asc',
       _list: groupId ? [groupId] : [],
       gender:
@@ -323,8 +315,11 @@ const servicesCohorts: IServiceCohorts = {
       _total: 'accurate'
     })
 
+    // Our fhir api as  two different way to represent IPP that doesnt match Cohort 360
+    // We use unifyIPP to change the identifier so that it's compatible with C360
     const originalPatients = getApiResponseResources(patientsResp)?.map(unifyIPP)
 
+    // If there's no groupId theres no way for us to gather the statistics
     if (!groupId || !includeFacets) {
       const totalPatients = patientsResp.data.resourceType === 'Bundle' ? patientsResp.data.total : 0
 
@@ -334,8 +329,10 @@ const servicesCohorts: IServiceCohorts = {
       }
     }
 
-    // REPLACE THIS WITH THE RIGHT WAY TO GET THE FACETS ONCE WE HAVE A FIXED API
-    const groupResp = await fetchGroup({ _id: groupId /*, _elements: ['id', 'quantity', 'extension']*/ })
+    // TODO : REPLACE THIS WITH THE RIGHT WAY TO GET THE FACETS ONCE WE HAVE THE REQUESTER
+    // There's two way for us to get the statistiques of the patients until we have a functioning requester
+    // requesting every patient or storing precomputed statistique in extentions of the group
+    const groupResp = await fetchGroup({ _id: groupId })
     const groupData = getApiResponseResources(groupResp)
     const group = groupData ? groupData[0] : undefined
 
@@ -366,61 +363,70 @@ const servicesCohorts: IServiceCohorts = {
     endDate,
     groupId
   ) => {
-    const [docsList, allDocsList] = await Promise.all([
-      fetchComposition({
-        _count: 20,
-        offset: page ? (page - 1) * 20 : 0,
-        _sort: sortBy,
-        sortDirection: sortDirection === 'desc' ? 'desc' : 'asc',
-        status: 'final',
-        _elements: searchInput ? [] : ['status', 'type', 'subject', 'encounter', 'date', 'title'],
-        _list: groupId ? [groupId] : [],
-        _text: searchInput,
-        type: selectedDocTypes.length > 0 ? selectedDocTypes.join(',') : '',
-        'encounter.identifier': nda,
-        'patient.identifier': ipp,
-        minDate: startDate ?? '',
-        maxDate: endDate ?? ''
-      }),
-      !!searchInput || selectedDocTypes.length > 0 || !!nda || !!ipp || !!startDate || !!endDate
-        ? fetchComposition({
-            status: 'final',
-            _list: groupId ? [groupId] : [],
-            _count: 0
-          })
-        : null
-    ])
-
-    const totalDocs = docsList?.data?.resourceType === 'Bundle' ? docsList.data.total : 0
-    const totalAllDocs =
-      allDocsList !== null ? (allDocsList?.data?.resourceType === 'Bundle' ? allDocsList.data.total : 0) : totalDocs
-
-    const totalPatientDocs =
-      docsList?.data?.resourceType === 'Bundle'
-        ? (
-            docsList?.data?.meta?.extension?.find((extension) => extension.url === 'unique-patient') || {
-              valueDecimal: 0
-            }
-          ).valueDecimal
-        : 0
-    const totalAllPatientDocs =
-      allDocsList !== null
-        ? (
-            allDocsList?.data?.meta?.extension?.find((extension) => extension.url === 'unique-patient') || {
-              valueDecimal: 0
-            }
-          ).valueDecimal
-        : totalPatientDocs
-
-    const _documentsList = await getDocumentInfos(deidentifiedBoolean, getApiResponseResources(docsList), groupId)
-
+    // Documents in our API dont follow the non standard way APHP implemented it so for now we're returning no documents
     return {
       totalDocs: 0,
       totalAllDocs: 0,
-      totalPatientDocs: totalPatientDocs ?? 0,
-      totalAllPatientDocs: totalAllPatientDocs ?? 0,
+      totalPatientDocs: 0,
+      totalAllPatientDocs: 0,
       documentsList: []
     }
+
+    // const [docsList, allDocsList] = await Promise.all([
+    //   fetchComposition({
+    //     _count: 20,
+    //     offset: page ? (page - 1) * 20 : 0,
+    //     _sort: sortBy,
+    //     sortDirection: sortDirection === 'desc' ? 'desc' : 'asc',
+    //     status: 'final',
+    //     _elements: searchInput ? [] : ['status', 'type', 'subject', 'encounter', 'date', 'title'],
+    //     _list: groupId ? [groupId] : [],
+    //     _text: searchInput,
+    //     type: selectedDocTypes.length > 0 ? selectedDocTypes.join(',') : '',
+    //     'encounter.identifier': nda,
+    //     'patient.identifier': ipp,
+    //     minDate: startDate ?? '',
+    //     maxDate: endDate ?? ''
+    //   }),
+    //   !!searchInput || selectedDocTypes.length > 0 || !!nda || !!ipp || !!startDate || !!endDate
+    //     ? fetchComposition({
+    //         status: 'final',
+    //         _list: groupId ? [groupId] : [],
+    //         _count: 0
+    //       })
+    //     : null
+    // ])
+
+    // const totalDocs = docsList?.data?.resourceType === 'Bundle' ? docsList.data.total : 0
+    // const totalAllDocs =
+    //   allDocsList !== null ? (allDocsList?.data?.resourceType === 'Bundle' ? allDocsList.data.total : 0) : totalDocs
+
+    // const totalPatientDocs =
+    //   docsList?.data?.resourceType === 'Bundle'
+    //     ? (
+    //         docsList?.data?.meta?.extension?.find((extension) => extension.url === 'unique-patient') || {
+    //           valueDecimal: 0
+    //         }
+    //       ).valueDecimal
+    //     : 0
+    // const totalAllPatientDocs =
+    //   allDocsList !== null
+    //     ? (
+    //         allDocsList?.data?.meta?.extension?.find((extension) => extension.url === 'unique-patient') || {
+    //           valueDecimal: 0
+    //         }
+    //       ).valueDecimal
+    //     : totalPatientDocs
+
+    // const _documentsList = await getDocumentInfos(deidentifiedBoolean, getApiResponseResources(docsList), groupId)
+
+    // return {
+    //   totalDocs: 0,
+    //   totalAllDocs: 0,
+    //   totalPatientDocs: totalPatientDocs ?? 0,
+    //   totalAllPatientDocs: totalAllPatientDocs ?? 0,
+    //   documentsList: []
+    // }
   },
 
   fetchDocumentContent: async (compositionId) => {
@@ -669,6 +675,7 @@ const servicesCohorts: IServiceCohorts = {
 
 export default servicesCohorts
 
+/*
 const getDocumentInfos: (
   deidentifiedBoolean: boolean,
   documents?: IComposition[],
@@ -748,7 +755,13 @@ const getDocumentInfos: (
 
   return cohortDocuments
 }
+*/
 
+/**
+ * Takes the patient's IPP and change them to the expected format
+ * @param patient (IPatient) patient to which we should adapt the IPP
+ * @returns the input patient
+ */
 const unifyIPP = (patient: IPatient): IPatient => {
   if (patient.identifier === undefined) {
     return patient
@@ -760,7 +773,7 @@ const unifyIPP = (patient: IPatient): IPatient => {
   if (ipp?.type !== undefined) {
     ipp.type.coding = [
       {
-        code: 'IPP'
+        code: 'IPP' // We add the tag used by C360 to find IPPs
       },
       ...(ipp.type.coding ?? [])
     ]

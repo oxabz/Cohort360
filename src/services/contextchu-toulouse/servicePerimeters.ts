@@ -1,18 +1,11 @@
 import { CohortData, ScopeTreeRow } from 'types'
 import { IGroup, IOrganization, IExtension } from '@ahryman40k/ts-fhir-types/lib/R4'
-import {
-  getGenderRepartitionMapCHUT,
-  getAgeRepartitionMapCHUT,
-  getEncounterRepartitionMapAphp,
-  getVisitRepartitionMapAphp,
-  getVisitRepartitionMapCHUT
-} from 'utils/graphUtils'
+import { getGenderRepartitionMapCHUT, getAgeRepartitionMapCHUT, getVisitRepartitionMapCHUT } from 'utils/graphUtils'
 import { getApiResponseResources } from 'utils/apiHelpers'
 
-import { fetchGroup, fetchPatient, fetchEncounter, fetchOrganization } from './callApi'
+import { fetchGroup, fetchPatient, fetchOrganization } from './callApi'
 
 import apiBackend from '../apiBackend'
-import { number } from 'prop-types'
 
 const loadingItem: ScopeTreeRow = { id: 'loading', name: 'loading', quantity: 0, subItems: [] }
 
@@ -105,7 +98,7 @@ const servicesPerimeters: IServicePerimeters = {
     const totalPatients = perimetersData?.map((p) => p?.quantity ?? 0).reduce((a, b) => a + b)
 
     const originalPatients = getApiResponseResources(patientsResp)
-
+    // We gather the statistics from the extentiosn on Group
     const agePyramidData = getAgeRepartitionMapCHUT(perimetersData[0].extension)
     const genderRepartitionMap = getGenderRepartitionMapCHUT(perimetersData[0].extension)
     const monthlyVisitData = getVisitRepartitionMapCHUT(perimetersData[0].extension)
@@ -192,7 +185,7 @@ const servicesPerimeters: IServicePerimeters = {
         return []
       }
 
-      // Mapping the right data to the actual id stored in "source_value"
+      // Our organization id doesnt match with the perimeter ID so we have to get the source_value from the back
       perimetersIds = await Promise.all(
         rightsData.map(async (rightData) => {
           const perimeterResponse = await apiBackend.get(`care-sites/${rightData.care_site_id}/`)
@@ -277,22 +270,25 @@ const servicesPerimeters: IServicePerimeters = {
   },
 
   getScopeSubItems: async (perimeter: ScopeTreeRow | null, getSubItem?: boolean) => {
-    // TODO : REFAIRE CETTE FONCTION UNE FOIS LE FHIR OK
-
+    // TODO : Fix the function once the partOf field is filled in the API
     if (!perimeter) return []
 
+    // Get the perimeterId with the source_value(Organization.id)
     const perimeterResponse = await apiBackend.get(`care-sites/?source_value=${perimeter.id}`)
     const perimeterData: any = perimeterResponse.status === 200 ? (perimeterResponse?.data as any[]) : {}
     if (perimeterData.results?.length <= 0) return []
     const perimeterId = perimeterData.results[0].id
 
+    // Taking the children of the care-sites because partOf is not filled in our API
     let childrenPerimeterResponse = await apiBackend.get(`care-sites/${perimeterId}/children/`)
     let childrenPerimeterData: any =
       childrenPerimeterResponse.status === 200 ? (childrenPerimeterResponse?.data as any[]) : {}
 
+    // Go back to FHIR API id
     let childrenPerimeterFhirId: any[] =
       childrenPerimeterData.results?.map((perimeter: any) => perimeter.source_value) ?? []
 
+    // Request the children id
     while (childrenPerimeterData.next) {
       childrenPerimeterResponse = await apiBackend.get(childrenPerimeterData.next)
       childrenPerimeterData = childrenPerimeterResponse.status === 200 ? (childrenPerimeterResponse?.data as any[]) : {}
@@ -312,6 +308,7 @@ const servicesPerimeters: IServicePerimeters = {
       return all
     }, [])
 
+    // Requesting the childrens info
     for (const childrenIds of childrenPerimeterFhirIdChunks) {
       const organization = await fetchOrganization({
         _id: childrenIds.join(','),
@@ -371,6 +368,7 @@ const servicesPerimeters: IServicePerimeters = {
 
     const idCorresp: { [name: string]: number } = {}
 
+    // Getting the backend id of the organizations
     await Promise.all(
       caresiteIds
         .map((id) => apiBackend.get(`care-sites/?source_value=${id}`))
@@ -389,6 +387,7 @@ const servicesPerimeters: IServicePerimeters = {
     )
     const rightsData = (rightResponse.data as any[]) ?? []
 
+    // Add the rights extetion to the perimeter
     return perimeters.map((perimeter) => {
       const caresiteId =
         perimeter.managingEntity?.reference?.search('Organization/') !== -1

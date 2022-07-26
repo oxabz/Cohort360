@@ -2,8 +2,6 @@ import axios from 'axios'
 
 import { BACK_API_URL } from '../../constants'
 
-import { fetchPractitioner } from './callApi'
-
 export interface IServicePractitioner {
   /**
    * Fonction qui permet d'authentifier un utilisateur avec un username et un password
@@ -84,7 +82,8 @@ const servicePractitioner: IServicePractitioner = {
     })
   },
 
-  fetchPractitioner: async (username) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  fetchPractitioner: async (_username) => {
     /*
     const practitioner = await fetchPractitioner({
       identifier: username
@@ -109,10 +108,10 @@ const servicePractitioner: IServicePractitioner = {
     */
     return {
       id: 493,
-      userName: 7777777,
-      displayName: 'John Doe',
-      firstName: 'John',
-      lastName: 'Doe'
+      userName: 4163302,
+      displayName: 'Squall Leonheart',
+      firstName: 'Squall',
+      lastName: 'Leonheart'
     }
   }
 }

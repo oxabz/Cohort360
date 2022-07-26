@@ -298,6 +298,7 @@ const servicesPatients: IServicePatients = {
   },
 
   fetchMyPatients: async () => {
+    // Doesnt work so far because the API doesnt include authorization mechanism
     const [myPatientsResp, myPatientsEncounters] = await Promise.all([
       fetchPatient({
         pivotFacet: ['age_gender', 'deceased_gender'],
@@ -376,6 +377,8 @@ const servicesPatients: IServicePatients = {
 
     switch (selectedTab) {
       case 'diagnostic':
+        // HACK : recorded-date isnt included in the Condition ressource in our API
+        // to have this sort we use the periode field of the associated encounter
         pmsiResp =
           sortBy === 'code'
             ? await fetchCondition({
