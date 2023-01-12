@@ -351,17 +351,17 @@ const servicesCohorts: IServiceCohorts = {
   },
 
   fetchDocuments: async (
-    deidentifiedBoolean,
-    sortBy,
-    sortDirection,
-    page,
-    searchInput,
-    selectedDocTypes,
-    nda,
-    ipp,
-    startDate,
-    endDate,
-    groupId
+    deidentifiedBoolean, // eslint-disable-line
+    sortBy, // eslint-disable-line
+    sortDirection, // eslint-disable-line
+    page, // eslint-disable-line
+    searchInput, // eslint-disable-line
+    selectedDocTypes, // eslint-disable-line
+    nda, // eslint-disable-line
+    ipp, // eslint-disable-line
+    startDate, // eslint-disable-line
+    endDate, // eslint-disable-line
+    groupId // eslint-disable-line
   ) => {
     // Documents in our API dont follow the non standard way APHP implemented it so for now we're returning no documents
     return {
