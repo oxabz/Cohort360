@@ -11,7 +11,7 @@ export const LOGIN_REDIRECT_URL = 'irrelevant'
 
 export let BOOLEANTRUE = 'true'
 
-export const CONTEXT = process.env.NODE_ENV !== 'development' ? '{REACT_APP_CONTEXT}' : process.env.REACT_APP_CONTEXT
+export const CONTEXT = process.env.REACT_APP_CONTEXT
 
 export const ACCES_TOKEN = 'access'
 export const REFRESH_TOKEN = 'refresh'
