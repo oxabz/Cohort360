@@ -3,8 +3,10 @@ set -e
 
 # if the context is the context is chu-toulouse use the toulouse compatible nginx 
 if [ $REACT_APP_CONTEXT = "chu-toulouse" ]; then
-    cp /etc/nginx/conf.d/nginx.chut.conf /etc/nginx/conf.d/nginx.conf
-    sed -i "s@{FHIR_AUTH}@$FHIR_URL@g" /etc/nginx/conf.d/nginx.conf
+    mv /etc/nginx/conf.d/nginx.chut.conf /etc/nginx/conf.d/nginx.conf
+    sed -i "s@{FHIR_AUTH}@$FHIR_AUTH@g" /etc/nginx/conf.d/nginx.conf
+else 
+    rm -f /etc/nginx/conf.d/nginx.chut.conf
 fi
 
 sed -i "s@{FHIR_URL}@$FHIR_URL@g" /etc/nginx/conf.d/nginx.conf
