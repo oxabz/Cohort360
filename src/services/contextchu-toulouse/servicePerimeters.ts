@@ -221,7 +221,7 @@ const servicesPerimeters: IServicePerimeters = {
           }
         })
       }
-      organizationList = await Promise.all(organizationList.map(addCohortID))
+      organizationList = await Promise.all(organizationList.map(addCohortIDandQuantity))
       return organizationList
     } catch (error) {
       console.error('Error (getPerimeters) :', error)
@@ -320,7 +320,7 @@ const servicesPerimeters: IServicePerimeters = {
       let organizationData = getApiResponseResources(organization) || []
       if (organizationData.length === 0) continue
 
-      organizationData = await Promise.all(organizationData.map(addCohortID))
+      organizationData = await Promise.all(organizationData.map(addCohortIDandQuantity))
 
       for (const organizationItem of organizationData) {
         const scopeRow: ScopeTreeRow = organizationItem as ScopeTreeRow
@@ -449,18 +449,19 @@ const getAccessName = (extension?: IExtension[]) => {
   }
 }
 
-const addCohortID = async (organization: IOrganization) => {
+const addCohortIDandQuantity = async (organization: IOrganization) => {
   const perimetersResp = await fetchGroup({
     characteristic: ['perimeter_holder'],
     'managing-entity': [`Organization/${organization.id}`],
-    _elements: ['id']
+    _elements: ['id', 'quantity']
   })
   const perimetersData = getApiResponseResources(perimetersResp) ?? []
   const perimterGroupID = perimetersData.map((perimeter) => perimeter.id).filter((x): x is string => x !== undefined)[0]
 
   organization.extension = [
     ...(organization.extension ?? []),
-    { url: 'cohort-id', valueInteger: Number.parseInt(perimterGroupID) ?? 0 }
+    { url: 'cohort-id', valueInteger: Number.parseInt(perimterGroupID) ?? 0 },
+    { url: 'cohort-size', valueInteger: perimetersData[0]?.quantity ?? 0 }
   ]
 
   return organization
