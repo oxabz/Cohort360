@@ -1,5 +1,5 @@
 import { CONTEXT } from './../constants'
-import servicesAphp, { IServiceAphp } from 'services/aphp'
+import servicesAphp, { IServiceAphp } from 'services'
 import servicesChut, { IServiceChut } from 'services/chu-toulouse'
 
 let services: IServiceAphp | IServiceChut = servicesAphp
