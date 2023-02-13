@@ -21,7 +21,7 @@ import { useAppDispatch } from 'state'
 
 import NoRights from 'components/ErrorView/NoRights'
 
-const LegalMentionDialog = ({ open, setOpen }) => {
+function LegalMentionDialog({ open, setOpen }: { open: boolean; setOpen: Function }) {
   const _setOpen = () => {
     if (setOpen && typeof setOpen === 'function') {
       setOpen(false)
@@ -71,8 +71,8 @@ const Landing: React.FC<void> = () => {
     const lastConnection = kc.refreshTokenParsed?.auth_time
       ? new Date(kc.refreshTokenParsed.auth_time).toLocaleString()
       : undefined
-    const maintenanceResponse = await services.practitioner.maintenance()
-    const maintenance = maintenanceResponse.data
+    const maintenanceResponse = await (services.practitioner as any).maintenance()
+    const maintenance = maintenanceResponse?.data
 
     if (practitioner) {
       const practitionerPerimeters = await services.perimeters.getPerimeters()
@@ -137,7 +137,6 @@ const Landing: React.FC<void> = () => {
           xs={12}
           sm={6}
           md={6}
-          elevation={6}
           direction="column"
           justifyContent="center"
           alignItems="center"
@@ -164,7 +163,7 @@ const Landing: React.FC<void> = () => {
               Connection avec Keycloak
             </Button>
             <Typography align="center" className={classes.mention}>
-              <Link href="#" onClick={() => setMentions(true)}>
+              <Link href="#" onClick={() => setMentions(true)} to={'#'}>
                 En cliquant sur &quot;connexion&quot;, vous acceptez la mention légale.
               </Link>
             </Typography>
