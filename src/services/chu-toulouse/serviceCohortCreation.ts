@@ -89,6 +89,7 @@ export interface IServiceCohortCreation {
   fetchAdministrations: () => Promise<any>
   fetchBiologyData: () => Promise<any>
   fetchBiologyHierarchy: (biologyParent?: string) => Promise<any>
+  fetchBiologySearch: (searchInput: string) => Promise<{ anabio: any; loinc: any }>
 }
 
 const servicesCohortCreation: IServiceCohortCreation = {
@@ -261,7 +262,10 @@ const servicesCohortCreation: IServiceCohortCreation = {
   fetchPrescriptionTypes: fetchPrescriptionTypes,
   fetchAdministrations: fetchAdministrations,
   fetchBiologyData: fetchBiologyData,
-  fetchBiologyHierarchy: fetchBiologyHierarchy
+  fetchBiologyHierarchy: fetchBiologyHierarchy,
+  fetchBiologySearch: function (/*searchInput: string*/): Promise<{ anabio: any; loinc: any }> {
+    throw new Error('Function not implemented.')
+  }
 }
 
 export default servicesCohortCreation

@@ -1,6 +1,11 @@
 import { CohortPatient } from 'types'
 import moment from 'moment'
 
+function getAgeCHUT(birthDate: Date, deathDate: Date | undefined): number {
+  const end = deathDate ?? new Date()
+  return (end.getTime() - birthDate.getTime()) / (1000 * 360 * 365)
+}
+
 export const getAgeAphp = (ageObj: any, momentUnit: 'days' | 'months') => {
   if (!ageObj) return 'Âge inconnu'
   let ageUnit: 'year' | 'month' | 'day' = 'year'
@@ -38,7 +43,7 @@ export const getAge = (patient: CohortPatient): string => {
   if (patient.birthDate) {
     const birthDate: Date = new Date(patient.birthDate)
     const deathDate: Date | undefined = patient.deceasedDateTime ? new Date(patient.deceasedDateTime) : undefined
-    return `${getAgeArkhn(birthDate, deathDate)} ans`
+    return `${getAgeCHUT(birthDate, deathDate)} ans`
   }
   return 'Âge inconnu'
 }

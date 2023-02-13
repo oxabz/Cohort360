@@ -243,6 +243,7 @@ export interface IServicePatients {
     searchInput: string,
     selectedDocTypes: string[],
     nda: string,
+    onlyPdfAvailable: boolean,
     startDate?: string | null,
     endDate?: string | null,
     groupId?: string
@@ -589,6 +590,7 @@ const servicesPatients: IServicePatients = {
     searchInput: string,
     selectedDocTypes: string[],
     nda: string,
+    onlyPdfAvailable: boolean,
     startDate?: string | null,
     endDate?: string | null,
     groupId?: string

@@ -11,6 +11,17 @@ const loadingItem: ScopeTreeRow = { id: 'loading', name: 'loading', quantity: 0,
 
 export interface IServicePerimeters {
   /**
+   * Cette fonction récupère le droit de faire une recherche par IPP lié à un (ou plusieurs) périmètre(s)
+   *
+   * Argument:
+   *   - selectedPopulation: Array composé des périmètres selectionnés pour une requête
+   *
+   * Retour:
+   *   - booléen
+   */
+  allowSearchIpp: (selectedPopulation: ScopeTreeRow[]) => Promise<boolean>
+
+  /**
    * Cette fonction retourne les informations lié à un (ou plusieur) périmètre(s)
    *
    * Argument:
@@ -413,6 +424,9 @@ const servicesPerimeters: IServicePerimeters = {
         ]
       }
     })
+  },
+  allowSearchIpp: function (/*selectedPopulation: ScopeTreeRow[]*/): Promise<boolean> {
+    throw new Error('Function not implemented.')
   }
 }
 

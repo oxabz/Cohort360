@@ -5,7 +5,8 @@ import {
   Back_API_Response,
   Cohort,
   AgeRepartitionType,
-  GenderRepartitionType
+  GenderRepartitionType,
+  searchInputError
 } from 'types'
 import {
   IPatient,
@@ -83,6 +84,7 @@ export interface IServiceCohorts {
     vitalStatus: VitalStatus,
     sortBy: string,
     sortDirection: string,
+    deidentified: boolean,
     groupId?: string,
     includeFacets?: boolean
   ) => Promise<
@@ -119,6 +121,7 @@ export interface IServiceCohorts {
     selectedDocTypes: string[],
     nda: string,
     ipp: string,
+    onlyPdfAvailable: boolean,
     startDate?: string | null,
     endDate?: string | null,
     groupId?: string
@@ -129,6 +132,17 @@ export interface IServiceCohorts {
     totalAllPatientDocs: number
     documentsList: IComposition[]
   }>
+
+  /**
+   * Permet de vérifier si le champ de recherche textuelle est correct
+   *
+   * Argument:
+   *   - searchInput: champ de recherche textuelle
+   *
+   * Retourne:
+   *   - searchInputError: objet décrivant la ou les erreurs du champ de recherche s'il y en a
+   */
+  checkDocumentSearchInput: (searchInput: string) => Promise<searchInputError>
 
   /**
    * Permet de récupérer le contenue d'un document
@@ -287,6 +301,7 @@ const servicesCohorts: IServiceCohorts = {
     vitalStatus,
     sortBy,
     sortDirection,
+    deidentified, // eslint-disable-line
     groupId,
     includeFacets
   ) => {
@@ -302,7 +317,7 @@ const servicesCohorts: IServiceCohorts = {
     const patientsResp = await fetchPatient({
       _count: 20,
       offset: page ? (page - 1) * 20 : 0,
-      _sort: !['given', 'familly', 'name'].includes(sortBy) ? sortBy : undefined, // HACK : Since the _list parameter doesnt work the text based sort times out the request
+      _sort: !['given', 'familly', 'name'].includes(sortBy) ? sortBy : undefined,
       sortDirection: sortDirection === 'desc' ? 'desc' : 'asc',
       _list: groupId ? [groupId] : [],
       gender:
@@ -359,6 +374,7 @@ const servicesCohorts: IServiceCohorts = {
     selectedDocTypes, // eslint-disable-line
     nda, // eslint-disable-line
     ipp, // eslint-disable-line
+    onlyPdfAvailable, // eslint-disable-line
     startDate, // eslint-disable-line
     endDate, // eslint-disable-line
     groupId // eslint-disable-line
@@ -396,11 +412,9 @@ const servicesCohorts: IServiceCohorts = {
     //       })
     //     : null
     // ])
-
     // const totalDocs = docsList?.data?.resourceType === 'Bundle' ? docsList.data.total : 0
     // const totalAllDocs =
     //   allDocsList !== null ? (allDocsList?.data?.resourceType === 'Bundle' ? allDocsList.data.total : 0) : totalDocs
-
     // const totalPatientDocs =
     //   docsList?.data?.resourceType === 'Bundle'
     //     ? (
@@ -417,9 +431,7 @@ const servicesCohorts: IServiceCohorts = {
     //         }
     //       ).valueDecimal
     //     : totalPatientDocs
-
     // const _documentsList = await getDocumentInfos(deidentifiedBoolean, getApiResponseResources(docsList), groupId)
-
     // return {
     //   totalDocs: 0,
     //   totalAllDocs: 0,
@@ -670,6 +682,9 @@ const servicesCohorts: IServiceCohorts = {
     } catch (error) {
       return { error }
     }
+  },
+  checkDocumentSearchInput: function (/*searchInput: string*/): Promise<searchInputError> {
+    throw new Error('Function not implemented.')
   }
 }
 

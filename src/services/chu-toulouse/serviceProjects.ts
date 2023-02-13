@@ -1,6 +1,6 @@
 import apiBack from '../apiBackend'
 
-import { ProjectType, RequestType, Cohort } from 'types'
+import { ProjectType, RequestType, Cohort, CohortFilters, Sort } from 'types'
 
 import servicesCohorts from './serviceCohorts'
 
@@ -155,17 +155,22 @@ export interface IServiceProjects {
    * Retourne la liste de Cohort d'un practitioner
    *
    * Argument:
+   *   - filters: Indique les filtres choisis sur les cohortes
+   *   - searchInput: Indique la chaîne de caractère recherchée par l'utilisateur
+   *   - sort: Indique l'ordre dans lequel les cohortes seront affichées
    *   - limit: Determine une limite de cohorte demandé
    *   - offset: Determine un index de départ
    *
-   * Retoune:
+   * Retourne:
    *   - count: Nombre total de cohortes
-   *   - next: URL d'appel pour récupérer les cohortes suivant
-   *   - previous: URL d'appel pour récupérer les cohortes précédent
+   *   - next: URL d'appel pour récupérer les cohortes suivantes
+   *   - previous: URL d'appel pour récupérer les cohortes précédentes
    *   - results: Liste de cohortes récupérées
    */
   fetchCohortsList: (
-    providerId: string,
+    filters: CohortFilters,
+    searchInput: string,
+    sort: Sort,
     limit?: number,
     offset?: number
   ) => Promise<{
