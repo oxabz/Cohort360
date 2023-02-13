@@ -65,7 +65,7 @@ const AutoLogoutContainer = () => {
   const refreshToken = async () => {
     try {
       // console.log('refresh still actif')
-      if (['aphp', 'arkhn', 'chu-toulouse'].includes(CONTEXT)) {
+      if (['aphp', 'arkhn'].includes(CONTEXT)) {
         console.log('refreshing token')
         const res = await axios.post(`${BACK_API_URL}/accounts/refresh/`)
 
