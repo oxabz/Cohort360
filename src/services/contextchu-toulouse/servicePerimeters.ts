@@ -1,0 +1,468 @@
+import { CohortData, ScopeTreeRow } from 'types'
+import { IGroup, IOrganization, IExtension } from '@ahryman40k/ts-fhir-types/lib/R4'
+import { getGenderRepartitionMapCHUT, getAgeRepartitionMapCHUT, getVisitRepartitionMapCHUT } from 'utils/graphUtils'
+import { getApiResponseResources } from 'utils/apiHelpers'
+
+import { fetchGroup, fetchPatient, fetchOrganization } from './callApi'
+
+import apiBackend from '../apiBackend'
+
+const loadingItem: ScopeTreeRow = { id: 'loading', name: 'loading', quantity: 0, subItems: [] }
+
+export interface IServicePerimeters {
+  /**
+   * Cette fonction retourne les informations lié à un (ou plusieur) périmètre(s)
+   *
+   * Argument:
+   *   - perimetersId: ID du périmètre (liste d'ID séparé par des virgules)
+   *
+   * Retour:
+   *   - CohortData | undefined
+   */
+  fetchPerimetersInfos: (perimetersId: string) => Promise<CohortData | undefined>
+
+  /**
+   * Cette fonction retourne les informations lié à un périmètre
+   * (Cette fonction n'est appelée que lors de la transformation du JSON en carte dans le requeteur)
+   *
+   * Argument:
+   *   - perimeterId: ID du périmètre
+   *
+   * Retour:
+   *   - ScopeTreeRow | undefined
+   */
+  fetchPerimeterInfoForRequeteur: (perimeterId: string) => Promise<ScopeTreeRow | undefined>
+
+  /**
+   * Cette fonction retroune l'ensemble des perimetres auquels un practitioner a le droit
+   *
+   * Argument:
+   *   - practitionerId: Identifiant technique du practitioner
+   *
+   * Retour:
+   *   - IOrganization[]
+   */
+  getPerimeters: () => Promise<IOrganization[]>
+
+  /**
+   * Cette fonction se base sur la fonction `getPerimeters` du service, et ré-organise la donnée sous forme d'un ScopeTreeRow[]
+   *
+   * Argument:
+   *   - practitionerId: Identifiant technique du practitioner
+   *
+   * Retour:
+   *   - ScopeTreeRow[]
+   */
+  getScopePerimeters: (practitionerId: string) => Promise<ScopeTreeRow[]>
+
+  /**
+   * Cette fonction retoune l'ensemble des périmètres enfant d'un périmètre passé en argument
+   *
+   * Argument:
+   *   - perimeter: Périmètres parent (récupéré par `getScopePerimeters`)
+   *   - getSubItem: = true si on demande à avoir les enfants des enfants
+   *
+   * Retour:
+   *   - ScopeTreeRow[]
+   */
+  getScopeSubItems: (perimeter: ScopeTreeRow | null, getSubItem?: boolean) => Promise<ScopeTreeRow[]>
+
+  /**
+   * Cette fonction retourne les droits de lecture d'un périmetre
+   *
+   * Arguments:
+   *   - perimetersId: ID du périmètre (liste d'ID séparé par des virgules)
+   */
+  fetchPerimetersRights: (perimeters: IGroup[]) => Promise<IGroup[]>
+}
+
+const servicesPerimeters: IServicePerimeters = {
+  fetchPerimetersInfos: async (perimetersId) => {
+    const [patientsResp, perimetersResp] = await Promise.all([
+      fetchPatient({
+        _list: [perimetersId],
+        _count: 20,
+        _elements: ['gender', 'name', 'birthDate', 'deceased', 'identifier', 'extension'],
+        _total: 'none'
+      }),
+      fetchGroup({
+        _id: perimetersId,
+        _elements: ['id', 'name', 'extension', 'quantity', 'managingEntity']
+      })
+    ])
+
+    const perimetersData = getApiResponseResources(perimetersResp) ?? []
+
+    const cohort = await servicesPerimeters.fetchPerimetersRights(perimetersData)
+
+    const totalPatients = perimetersData?.map((p) => p?.quantity ?? 0).reduce((a, b) => a + b)
+
+    const originalPatients = getApiResponseResources(patientsResp)
+    // We gather the statistics from the extentiosn on Group
+    const agePyramidData = getAgeRepartitionMapCHUT(perimetersData[0].extension)
+    const genderRepartitionMap = getGenderRepartitionMapCHUT(perimetersData[0].extension)
+    const monthlyVisitData = getVisitRepartitionMapCHUT(perimetersData[0].extension)
+
+    return {
+      cohort,
+      totalPatients,
+      originalPatients,
+      genderRepartitionMap,
+      visitTypeRepartitionData: [],
+      agePyramidData,
+      monthlyVisitData
+    }
+  },
+
+  fetchPerimeterInfoForRequeteur: async (perimeterId) => {
+    try {
+      if (!perimeterId) return undefined
+
+      // Get perimeter info with `perimeterId`
+      const groupResults = await fetchGroup({
+        _id: perimeterId
+      })
+
+      // Construct an `orgazationId`
+      let organiszationId =
+        groupResults && groupResults.data && groupResults.data.resourceType === 'Bundle'
+          ? groupResults.data.entry && groupResults.data.entry.length > 0
+            ? groupResults.data.entry[0].resource?.managingEntity?.display ?? ''
+            : ''
+          : ''
+      organiszationId = organiszationId ? organiszationId.replace('Organization/', '') : ''
+      if (!organiszationId) return undefined
+
+      // Get perimeter info with `organiszationId`
+      const organizationResult = await fetchOrganization({
+        _id: organiszationId,
+        _elements: ['name', 'extension', 'alias']
+      })
+
+      // Convert result in ScopeTreeRow
+      const organization =
+        organizationResult && organizationResult.data && organizationResult.data.resourceType === 'Bundle'
+          ? organizationResult.data.entry && organizationResult.data.entry.length > 0
+            ? organizationResult.data.entry[0].resource
+            : undefined
+          : undefined
+
+      const getScopeName = (perimeter: any) => {
+        const perimeterID = perimeter ? perimeter.alias?.[0] : false
+        if (!perimeterID) {
+          return perimeter ? perimeter.name : ''
+        }
+        return `${perimeterID} - ${perimeter.name}`
+      }
+
+      const scopeRows: ScopeTreeRow | undefined = organization
+        ? {
+            ...organization,
+            id: organization.id ?? '',
+            name: getScopeName(organization),
+            quantity:
+              organization.extension && organization.extension.length > 0
+                ? organization.extension.find((extension: any) => extension.url === 'cohort-size')?.valueInteger ?? 0
+                : 0,
+            subItems: []
+          }
+        : undefined
+      return scopeRows
+    } catch (error) {
+      return undefined
+    }
+  },
+
+  getPerimeters: async () => {
+    try {
+      const rightResponse = await apiBackend.get('accesses/my-rights/?pop-children')
+      const rightsData: any[] = rightResponse.status === 200 ? (rightResponse?.data as any[]) : []
+
+      let perimetersIds = []
+      let organizationList: IOrganization[] = []
+
+      if (rightResponse.status !== 200 || (rightsData && rightsData.length === 0)) {
+        return []
+      }
+
+      // Our organization id doesnt match with the perimeter ID so we have to get the source_value from the back
+      perimetersIds = await Promise.all(
+        rightsData.map(async (rightData) => {
+          const perimeterResponse = await apiBackend.get(`care-sites/${rightData.care_site_id}/`)
+          const perimeterData: any = perimeterResponse.status === 200 ? (perimeterResponse?.data as any) : {}
+          const perimetersId: string = perimeterData.source_value ?? ''
+          return perimetersId
+        })
+      )
+
+      if (perimetersIds.length > 0) {
+        const organisationResult = await fetchOrganization({
+          _id: perimetersIds.join(','),
+          _elements: ['name', 'extension', 'alias']
+        })
+
+        organizationList = getApiResponseResources(organisationResult) ?? []
+        organizationList = organizationList.map((organizationItem) => {
+          const foundRight = rightsData.find((rightData) => rightData.care_site_id === +(organizationItem.id ?? '0'))
+
+          return {
+            ...organizationItem,
+            extension: [
+              ...(organizationItem.extension ?? []),
+              {
+                url: 'READ_ACCESS',
+                valueString: foundRight?.right_read_patient_nominative ? 'DATA_NOMINATIVE' : 'DATA_PSEUDOANONYMISED'
+              },
+              {
+                url: 'EXPORT_ACCESS',
+                valueString: 'DATA_PSEUDOANONYMISED' // Impossible de faire un export de donnée sur un périmètre
+              }
+            ]
+          }
+        })
+      }
+      organizationList = await Promise.all(organizationList.map(addCohortIDandQuantity))
+      return organizationList
+    } catch (error) {
+      console.error('Error (getPerimeters) :', error)
+      return []
+    }
+  },
+
+  getScopePerimeters: async (practitionerId) => {
+    if (!practitionerId) return []
+
+    const perimetersResults = (await servicesPerimeters.getPerimeters()) ?? []
+
+    let scopeRows: ScopeTreeRow[] = []
+
+    for (const perimetersResult of perimetersResults) {
+      const scopeRow: ScopeTreeRow = perimetersResult as ScopeTreeRow
+
+      scopeRow.name = getScopeName(perimetersResult)
+      scopeRow.quantity = getQuantity(perimetersResult.extension)
+      scopeRow.access = getAccessName(perimetersResult.extension)
+      scopeRow.subItems = await servicesPerimeters.getScopeSubItems(perimetersResult as ScopeTreeRow)
+      scopeRows = [...scopeRows, scopeRow]
+    }
+
+    // Sort by quantity
+    scopeRows = scopeRows.sort((a: ScopeTreeRow, b: ScopeTreeRow) => {
+      if (a.quantity > b.quantity) {
+        return 1
+      } else if (a.quantity < b.quantity) {
+        return -1
+      }
+      return 0
+    })
+    // Sort by name
+    scopeRows = scopeRows.sort((a: ScopeTreeRow, b: ScopeTreeRow) => {
+      if (b.quantity === 0) return -1
+      if (a.name > b.name) {
+        return 1
+      } else if (a.name < b.name) {
+        return -1
+      }
+      return 0
+    })
+
+    return scopeRows
+  },
+
+  getScopeSubItems: async (perimeter: ScopeTreeRow | null, getSubItem?: boolean) => {
+    // TODO : Fix the function once the partOf field is filled in the API
+    if (!perimeter) return []
+
+    // Get the perimeterId with the source_value(Organization.id)
+    const perimeterResponse = await apiBackend.get(`care-sites/?source_value=${perimeter.id}`)
+    const perimeterData: any = perimeterResponse.status === 200 ? (perimeterResponse?.data as any[]) : {}
+    if (perimeterData.results?.length <= 0) return []
+    const perimeterId = perimeterData.results[0].id
+
+    // Taking the children of the care-sites because partOf is not filled in our API
+    let childrenPerimeterResponse = await apiBackend.get(`care-sites/${perimeterId}/children/`)
+    let childrenPerimeterData: any =
+      childrenPerimeterResponse.status === 200 ? (childrenPerimeterResponse?.data as any[]) : {}
+
+    // Go back to FHIR API id
+    let childrenPerimeterFhirId: any[] =
+      childrenPerimeterData.results?.map((perimeter: any) => perimeter.source_value) ?? []
+
+    // Request the children id
+    while (childrenPerimeterData.next) {
+      childrenPerimeterResponse = await apiBackend.get(childrenPerimeterData.next)
+      childrenPerimeterData = childrenPerimeterResponse.status === 200 ? (childrenPerimeterResponse?.data as any[]) : {}
+      childrenPerimeterFhirId = [
+        ...childrenPerimeterFhirId,
+        ...childrenPerimeterData.results.map((perimeter: any) => perimeter.source_value)
+      ]
+    }
+
+    if (!childrenPerimeterFhirId) return []
+
+    let subScopeRows: ScopeTreeRow[] = []
+
+    const childrenPerimeterFhirIdChunks = childrenPerimeterFhirId.reduce((all, one, i) => {
+      const ch = Math.floor(i / 20)
+      all[ch] = [].concat(all[ch] || [], one)
+      return all
+    }, [])
+
+    // Requesting the childrens info
+    for (const childrenIds of childrenPerimeterFhirIdChunks) {
+      const organization = await fetchOrganization({
+        _id: childrenIds.join(','),
+        _elements: ['name', 'extension', 'alias']
+      })
+
+      if (!organization) continue
+
+      let organizationData = getApiResponseResources(organization) || []
+      if (organizationData.length === 0) continue
+
+      organizationData = await Promise.all(organizationData.map(addCohortIDandQuantity))
+
+      for (const organizationItem of organizationData) {
+        const scopeRow: ScopeTreeRow = organizationItem as ScopeTreeRow
+        scopeRow.name = getScopeName(organizationItem)
+        scopeRow.quantity = getQuantity(organizationItem.extension)
+        scopeRow.access = perimeter.access
+        scopeRow.subItems =
+          getSubItem === true
+            ? await servicesPerimeters.getScopeSubItems(organizationItem as ScopeTreeRow)
+            : [loadingItem]
+        subScopeRows = [...subScopeRows, scopeRow]
+      }
+    }
+
+    // Sort by name
+    subScopeRows = subScopeRows.sort((a: ScopeTreeRow, b: ScopeTreeRow) => {
+      if (a.quantity > b.quantity) {
+        return 1
+      } else if (a.quantity < b.quantity) {
+        return -1
+      }
+      return 0
+    })
+    subScopeRows = subScopeRows.sort((a: ScopeTreeRow, b: ScopeTreeRow) => {
+      if (b.quantity === 0) return -1
+      if (a.name > b.name) {
+        return 1
+      } else if (a.name < b.name) {
+        return -1
+      }
+      return 0
+    })
+
+    return subScopeRows
+  },
+
+  fetchPerimetersRights: async (perimeters) => {
+    const caresiteIds = perimeters
+      .map((perimeter) =>
+        perimeter.managingEntity?.reference?.search('Organization/') !== -1
+          ? perimeter.managingEntity?.reference?.replace('Organization/', '')
+          : ''
+      )
+      .filter((item: any, index: number, array: any[]) => item && array.indexOf(item) === index)
+
+    const idCorresp: { [name: string]: number } = {}
+
+    // Getting the backend id of the organizations
+    await Promise.all(
+      caresiteIds
+        .map((id) => apiBackend.get(`care-sites/?source_value=${id}`))
+        .map((r) =>
+          r.then((resp) => {
+            const res = (resp?.data as any).results[0]
+            idCorresp[res.source_value] = res.id
+          })
+        )
+    )
+
+    const rightResponse = await apiBackend.get(
+      `accesses/my-rights/?care-site-ids=${Object.values(idCorresp)
+        .map((id: number) => `${id}`)
+        .join(',')}`
+    )
+    const rightsData = (rightResponse.data as any[]) ?? []
+
+    // Add the rights extetion to the perimeter
+    return perimeters.map((perimeter) => {
+      const caresiteId =
+        perimeter.managingEntity?.reference?.search('Organization/') !== -1
+          ? perimeter.managingEntity?.reference?.replace('Organization/', '')
+          : ''
+
+      const foundRight = rightsData.find(
+        (rightData) => rightData.care_site_id === +((caresiteId ? idCorresp[caresiteId] : '0') ?? '0')
+      )
+
+      return {
+        ...perimeter,
+        extension: [
+          ...(perimeter.extension ?? []),
+          {
+            url: 'READ_ACCESS',
+            valueString: foundRight?.right_read_patient_nominative ? 'DATA_NOMINATIVE' : 'DATA_PSEUDOANONYMISED'
+          },
+          {
+            url: 'EXPORT_ACCESS',
+            valueString: 'DATA_PSEUDOANONYMISED' // Impossible de faire un export de donnée sur un périmètre
+          }
+        ]
+      }
+    })
+  }
+}
+
+export default servicesPerimeters
+
+const getScopeName = (perimeter: any) => {
+  const perimeterID = perimeter ? perimeter.alias?.[0] : false
+  if (!perimeterID) {
+    return perimeter ? perimeter.name : ''
+  }
+  return `${perimeterID} - ${perimeter.name}`
+}
+
+const getQuantity = (extension?: IExtension[]) => {
+  const accessExtension = extension?.find((extension) => extension.url === 'cohort-size')
+  if (!extension || !accessExtension) {
+    return 0
+  }
+  return accessExtension.valueInteger || 0
+}
+
+const getAccessName = (extension?: IExtension[]) => {
+  const accessExtension = extension?.find((extension) => extension.url === 'READ_ACCESS')
+  if (!extension || !accessExtension) {
+    return ''
+  }
+  const access = accessExtension?.valueString
+
+  switch (access) {
+    case 'DATA_PSEUDOANONYMISED':
+      return 'Pseudonymisé'
+    default:
+      return 'Nominatif'
+  }
+}
+
+const addCohortIDandQuantity = async (organization: IOrganization) => {
+  const perimetersResp = await fetchGroup({
+    characteristic: ['perimeter_holder'],
+    'managing-entity': [`Organization/${organization.id}`],
+    _elements: ['id', 'quantity']
+  })
+  const perimetersData = getApiResponseResources(perimetersResp) ?? []
+  const perimterGroupID = perimetersData.map((perimeter) => perimeter.id).filter((x): x is string => x !== undefined)[0]
+
+  organization.extension = [
+    ...(organization.extension ?? []),
+    { url: 'cohort-id', valueInteger: Number.parseInt(perimterGroupID) ?? 0 },
+    { url: 'cohort-size', valueInteger: perimetersData[0]?.quantity ?? 0 }
+  ]
+
+  return organization
+}

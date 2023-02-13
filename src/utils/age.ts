@@ -29,10 +29,16 @@ export const getAge = (patient: CohortPatient): string => {
     const totalDays = patient.extension.find((item) => item.url?.includes('Age(TotalDays)'))
     if (totalDays) {
       return getAgeAphp(totalDays, 'days')
-    } else {
-      const totalMonths = patient.extension.find((item) => item.url?.includes('Age(TotalMonths)'))
+    }
+    const totalMonths = patient.extension.find((item) => item.url?.includes('Age(TotalMonths)'))
+    if (totalMonths) {
       return getAgeAphp(totalMonths, 'months')
     }
+  }
+  if (patient.birthDate) {
+    const birthDate: Date = new Date(patient.birthDate)
+    const deathDate: Date | undefined = patient.deceasedDateTime ? new Date(patient.deceasedDateTime) : undefined
+    return `${getAgeArkhn(birthDate, deathDate)} ans`
   }
   return 'Âge inconnu'
 }

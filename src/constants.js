@@ -1,5 +1,7 @@
 export let BOOLEANTRUE = 'true'
 
+export const CONTEXT = process.env.REACT_APP_CONTEXT
+
 export const ACCES_TOKEN = 'access'
 export const REFRESH_TOKEN = 'refresh'
 

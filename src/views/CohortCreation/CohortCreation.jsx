@@ -11,6 +11,7 @@ const CohortCreation = () => {
   const open = useSelector((state) => state.drawer)
 
   return (
+    // eslint-disable-next-line react/no-unknown-property
     <div position="fixed" className={clsx(classes.appBar, { [classes.appBarShift]: open })}>
       <div className={classes.mainContainer}>
         <Requeteur />

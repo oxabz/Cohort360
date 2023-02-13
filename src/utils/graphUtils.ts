@@ -427,3 +427,72 @@ export const getGenderRepartitionSimpleData = (
   }
   return { vitalStatusData, genderData }
 }
+
+export const getAgeRepartitionMapCHUT = (extension?: IExtension[]): AgeRepartitionType => {
+  const ageRepartitionExtension = extension?.find(
+    (extension) => extension.url === 'http://svlbigdata4/hapi/fhir/StructureDefinition/17288780'
+  )
+  if (!extension || !ageRepartitionExtension) {
+    return []
+  }
+  const ageRepartition = ageRepartitionExtension?.valueString
+  if (!ageRepartition) {
+    return []
+  }
+  const ageRepartitionMap: { [name: string]: any } = JSON.parse(ageRepartition)
+  const result: AgeRepartitionType = []
+  Object.entries(ageRepartitionMap).forEach(([key, value]) => {
+    const k = parseInt(key)
+    result[k] = value
+  })
+  return result
+}
+
+export const getGenderRepartitionMapCHUT = (extension?: IExtension[]): GenderRepartitionType => {
+  const defaultValue = {
+    male: { alive: 0, deceased: 0 },
+    female: { alive: 0, deceased: 0 },
+    other: { alive: 0, deceased: 0 },
+    unknown: { alive: 0, deceased: 0 }
+  }
+  const genderRepartitionExtension = extension?.find(
+    (extension) => extension.url === 'http://svlbigdata4/hapi/fhir/StructureDefinition/17288783'
+  )
+  if (!extension || !genderRepartitionExtension) {
+    return defaultValue
+  }
+  const genderRepartition = genderRepartitionExtension?.valueString
+  if (!genderRepartition) {
+    return defaultValue
+  }
+  return JSON.parse(genderRepartition)
+}
+
+export const getVisitRepartitionMapCHUT = (extension?: IExtension[]): VisiteRepartitionType => {
+  const defaultValue = {
+    Janvier: { male: 0, maleCount: 0, female: 0, femaleCount: 0, other: 0, otherCount: 0 },
+    Février: { male: 0, maleCount: 0, female: 0, femaleCount: 0, other: 0, otherCount: 0 },
+    Mars: { male: 0, maleCount: 0, female: 0, femaleCount: 0, other: 0, otherCount: 0 },
+    Avril: { male: 0, maleCount: 0, female: 0, femaleCount: 0, other: 0, otherCount: 0 },
+    Mai: { male: 0, maleCount: 0, female: 0, femaleCount: 0, other: 0, otherCount: 0 },
+    Juin: { male: 0, maleCount: 0, female: 0, femaleCount: 0, other: 0, otherCount: 0 },
+    Juillet: { male: 0, maleCount: 0, female: 0, femaleCount: 0, other: 0, otherCount: 0 },
+    Août: { male: 0, maleCount: 0, female: 0, femaleCount: 0, other: 0, otherCount: 0 },
+    Septembre: { male: 0, maleCount: 0, female: 0, femaleCount: 0, other: 0, otherCount: 0 },
+    Octobre: { male: 0, maleCount: 0, female: 0, femaleCount: 0, other: 0, otherCount: 0 },
+    Novembre: { male: 0, maleCount: 0, female: 0, femaleCount: 0, other: 0, otherCount: 0 },
+    Decembre: { male: 0, maleCount: 0, female: 0, femaleCount: 0, other: 0, otherCount: 0 }
+  }
+
+  const genderRepartitionExtension = extension?.find(
+    (extension) => extension.url === 'http://svlbigdata4/hapi/fhir/StructureDefinition/17288784'
+  )
+  if (!extension || !genderRepartitionExtension) {
+    return defaultValue
+  }
+  const genderRepartition = genderRepartitionExtension?.valueString
+  if (!genderRepartition) {
+    return defaultValue
+  }
+  return JSON.parse(genderRepartition)
+}
