@@ -1,15 +1,11 @@
 import { CONTEXT } from './../constants'
-import servicesAphp, { IServiceAphp } from 'services/contextAphp'
-import servicesChut, { IServiceChut } from 'services/contextchu-toulouse'
-import servicesArkhn, { IServiceArkhn } from 'services/contextArkhn'
+import servicesAphp, { IServiceAphp } from 'services/aphp'
+import servicesChut, { IServiceChut } from 'services/chu-toulouse'
 
-let services: IServiceAphp | IServiceArkhn | IServiceChut = servicesAphp
+let services: IServiceAphp | IServiceChut = servicesAphp
 switch (CONTEXT) {
   case 'aphp':
     services = servicesAphp
-    break
-  case 'arkhn':
-    services = servicesArkhn
     break
   case 'chu-toulouse':
     services = servicesChut
