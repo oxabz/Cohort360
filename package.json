@@ -23,6 +23,7 @@
     "date-fns": "^2.25.0",
     "graphql": "^15.6.1",
     "is-primitive": "^3.0.1",
+    "keycloak-js": "^20.0.3",
     "localforage": "^1.10.0",
     "moment": "^2.29.2",
     "prop-types": "^15.7.2",
