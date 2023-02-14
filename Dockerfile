@@ -8,6 +8,7 @@ COPY build build
 
 # Configure the nginx inside the docker image
 COPY .templates/nginx.conf /etc/nginx/conf.d/
+COPY .templates/nginx.chut.conf /etc/nginx/conf.d/
 
 # Entrypoint script is used to replace environment variables
 COPY ./docker-entrypoint.sh /app
