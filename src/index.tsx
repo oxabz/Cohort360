@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom'
 import { createTheme, ThemeProvider } from '@material-ui/core'
 import App from './App'
+import { initKeycloak } from './services/serviceAuth'
 
 const theme = createTheme({
   palette: {
@@ -70,9 +71,13 @@ const theme = createTheme({
   }
 })
 
-ReactDOM.render(
-  <ThemeProvider theme={theme}>
-    <App />
-  </ThemeProvider>,
-  document.getElementById('root')
-)
+const renderApp = () => {
+  ReactDOM.render(
+    <ThemeProvider theme={theme}>
+      <App />
+    </ThemeProvider>,
+    document.getElementById('root')
+  )
+}
+
+initKeycloak().then(renderApp)

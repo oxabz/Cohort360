@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { useKeycloak } from 'services/serviceAuth'
 
 import { BACK_API_URL } from '../../constants'
 
@@ -69,10 +70,11 @@ const servicePractitioner: IServicePractitioner = {
   },
 
   logout: async () => {
-    axios({
-      method: 'POST',
-      url: `${BACK_API_URL}/accounts/logout/`
-    })
+    useKeycloak()[1].logout()
+    // axios({
+    //   method: 'POST',
+    //   url: `${BACK_API_URL}/accounts/logout/`
+    // })
   },
 
   maintenance: async () => {

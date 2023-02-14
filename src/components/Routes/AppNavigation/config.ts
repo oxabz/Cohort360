@@ -1,5 +1,5 @@
-import Login from 'views/Login/Login'
 import { HealthCheck } from 'views/HealthCheck/HealthCheck'
+import Landing from 'views/Landing/Landing'
 import Welcome from 'views/Welcome/Welcome'
 import SearchPatient from 'views/SearchPatient/SearchPatient'
 import SavedResearch from 'views/SavedResearch/SavedResearch'
@@ -21,7 +21,7 @@ export default [
     exact: true,
     path: '/',
     name: 'main',
-    component: Login
+    component: Landing
   },
   /**
    * Cohort360: Main Page

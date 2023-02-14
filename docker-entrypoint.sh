@@ -14,6 +14,10 @@ sed -i "s@{FHIR_URL}@$FHIR_URL@g" /etc/nginx/conf.d/nginx.conf
 sed -i "s@{BACK_URL}@$BACK_URL@g" /etc/nginx/conf.d/nginx.conf
 sed -i "s@{DISPOSE_URL}@$DISPOSE_URL@g" /etc/nginx/conf.d/nginx.conf
 
+sed -i "s@{KEYCLOAK_REALM}@$KEYCLOAK_REALM@g" /app/build/keycloak.json
+sed -i "s@{KEYCLOAK_SERVER_URL}@$KEYCLOAK_SERVER_URL@g" /app/build/keycloak.json
+sed -i "s@{KEYCLOAK_RESOURCE}@$KEYCLOAK_RESOURCE@g" /app/build/keycloak.json
+
 # Replace all {MY_ENV_VAR} with the real MY_ENV_VAR defined in CI/CD.
 sed -i "s@{REACT_APP_BACK_API_URL}@$REACT_APP_BACK_API_URL@g" /app/build/static/js/*.js
 sed -i "s@{REACT_APP_REQUEST_API_URL}@$REACT_APP_REQUEST_API_URL@g" /app/build/static/js/*.js
