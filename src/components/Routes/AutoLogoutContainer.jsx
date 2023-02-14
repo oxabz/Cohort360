@@ -9,7 +9,14 @@ import { close as closeAction, open as openAction } from 'state/autoLogout'
 import { useAppDispatch, useAppSelector } from 'state'
 import { logout as logoutAction } from 'state/me'
 
-import { ACCES_TOKEN, BACK_API_URL, REFRESH_TOKEN, REFRESH_TOKEN_INTERVAL, SESSION_TIMEOUT } from '../../constants'
+import {
+  ACCES_TOKEN,
+  BACK_API_URL,
+  CONTEXT,
+  REFRESH_TOKEN,
+  REFRESH_TOKEN_INTERVAL,
+  SESSION_TIMEOUT
+} from '../../constants'
 
 import useStyles from './styles'
 
@@ -73,6 +80,7 @@ const AutoLogoutContainer = () => {
   }
 
   const refreshToken = async () => {
+    if (CONTEXT === 'chu-toulouse') return
     try {
       const res = await axios.post(`${BACK_API_URL}/accounts/refresh/`)
 
