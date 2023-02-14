@@ -10,6 +10,7 @@ const apiBackend = axios.create({
 
 apiBackend.interceptors.request.use((config) => {
   const token = localStorage.getItem(ACCES_TOKEN)
+  if (!token) return config
   config.headers.Authorization = `Bearer ${token}`
   return config
 })
