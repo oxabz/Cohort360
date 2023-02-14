@@ -1,7 +1,7 @@
 import { REFRESH_TOKEN, ACCES_TOKEN } from '../constants'
 import Keycloak from 'keycloak-js'
 
-const _kc = new Keycloak('keycloak.json')
+const _kc = new Keycloak('/keycloak.json')
 
 const useKeycloak: () => [boolean, Keycloak] = () => {
   const authenticated = _kc.authenticated ?? false
