@@ -99,7 +99,7 @@ const Landing: React.FC<void> = () => {
         loginAction({
           ...practitioner,
           id: `${practitioner.id}`,
-          userName: `${practitioner.userName}`,
+          userName: `${username}`,
           nominativeGroupsIds,
           deidentified: nominativeGroupsIds.length === 0,
           lastConnection,
