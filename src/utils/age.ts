@@ -3,7 +3,7 @@ import moment from 'moment'
 
 function getAgeCHUT(birthDate: Date, deathDate: Date | undefined): number {
   const end = deathDate ?? new Date()
-  return (end.getTime() - birthDate.getTime()) / (1000 * 360 * 365)
+  return Math.floor((end.getTime() - birthDate.getTime()) / (1000 * 1000 * 360 * 365))
 }
 
 export const getAgeAphp = (ageObj: any, momentUnit: 'days' | 'months') => {
